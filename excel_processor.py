@@ -128,14 +128,22 @@ def get_profile_activities(puesto_input: str, base_dir=".") -> list:
     return best_match if best_match else DEFAULT_ACTIVITIES
 
 def detect_worker_type(rpe: str) -> str:
-    """ Determina si el trabajador es TEMPORAL o BASE """
+    """
+    Determina el tipo de trabajador según el primer carácter del RPE/RTT:
+    - Inicia con LETRA ➔ TEMPORAL SINDICALIZADO (RTT)
+    - Inicia con NÚMERO ➔ BASE SINDICALIZADO (RPE)
+    """
     if not rpe:
         return "TEMPORAL SINDICALIZADO"
     clean_rpe = str(rpe).strip()
+    if not clean_rpe:
+        return "TEMPORAL SINDICALIZADO"
     if clean_rpe[0].isalpha():
         return "TEMPORAL SINDICALIZADO"
-    else:
+    elif clean_rpe[0].isdigit():
         return "BASE SINDICALIZADO"
+    else:
+        return "TEMPORAL SINDICALIZADO"
 
 def validate_rpe(rpe: str) -> str:
     """ Valida que el RPE/RTT tenga exactamente 5 caracteres """

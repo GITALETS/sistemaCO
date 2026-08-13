@@ -210,7 +210,7 @@ function handleRpeInput() {
         }
         if (btnSubmit) btnSubmit.disabled = false;
         
-        // Auto-sugerir Puesto Actual si es RTT
+        // Auto-sugerir Puesto Actual si es RTT (inicia con letra)
         const isTemporal = rpeVal && isNaN(rpeVal.charAt(0));
         const inputPuestoActual = document.getElementById("input-puesto-actual");
         if (inputPuestoActual && isTemporal && (!inputPuestoActual.value || inputPuestoActual.value === "BASE SINDICALIZADO")) {
@@ -265,7 +265,7 @@ function renderWorkerSearchResults(workers) {
         const item = document.createElement("div");
         item.className = "search-result-item";
         
-        const isTemporal = w.rpe && isNaN(w.rpe.charAt(0));
+        const isTemporal = w.worker_type ? w.worker_type.includes("TEMPORAL") : (w.rpe && isNaN(w.rpe.charAt(0)));
         const badgeClass = isTemporal ? "badge-rtt" : "badge-rpe";
         const badgeLabel = isTemporal ? "RTT (Temporal)" : "RPE (Base)";
         

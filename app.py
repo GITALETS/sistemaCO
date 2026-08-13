@@ -109,25 +109,100 @@ DEFAULT_WORKERS = [
 WORKERS_DATABASE = []
 LAST_DB_MTIME = 0
 
+def validate_worker_df(df):
+    """
+    Valida si un DataFrame de Excel/CSV contiene las 3 columnas esenciales:
+    1. RPE/RTT (o RPE, RTT)
+    2. NOMBRE DE TRABAJADOR (o Nombre)
+    3. PUESTO (o Puesto Actual)
+    """
+    df_cols = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+    
+    rpe_candidates = ["rpe/rtt", "rpe_rtt", "rpe", "rtt", "rpu", "rpe/rtt_", "clave_rpe"]
+    nombre_candidates = ["nombre_de_trabajador", "nombre_del_trabajador", "nombre", "trabajador", "nombre_trabajador"]
+    puesto_candidates = ["puesto", "puesto_actual", "puesto_base", "puesto_del_trabajador"]
+    
+    has_rpe = any(c in df_cols for c in rpe_candidates)
+    has_nombre = any(c in df_cols for c in nombre_candidates)
+    has_puesto = any(c in df_cols for c in puesto_candidates)
+    
+    missing = []
+    if not has_rpe:
+        missing.append("RPE/RTT")
+    if not has_nombre:
+        missing.append("NOMBRE DE TRABAJADOR")
+    if not has_puesto:
+        missing.append("PUESTO")
+        
+    is_valid = len(missing) == 0
+    return is_valid, missing
+
+def get_db_file_path():
+    """ Devuelve la ruta del archivo de base de datos de trabajadores existente que cumpla con el formato """
+    candidates = [
+        "BD_TRABAJADORES2026.xlsx",
+        "BD_TRABAJADORES2026.xls",
+        "BD_TRABAJADORES2026.csv",
+        "base_datos_trabajadores.xlsx",
+        "base_datos_trabajadores.xls",
+        "base_datos_trabajadores.csv"
+    ]
+    for c in candidates:
+        full_path = os.path.join(BASE_DIR, c)
+        if os.path.exists(full_path):
+            return full_path
+            
+    # Buscar cualquier archivo Excel/CSV en BASE_DIR que sea válido
+    for fname in os.listdir(BASE_DIR):
+        if fname.startswith("~$") or fname.startswith("."):
+            continue
+        ext = os.path.splitext(fname)[1].lower()
+        if ext in [".xlsx", ".xls", ".csv"]:
+            full_path = os.path.join(BASE_DIR, fname)
+            try:
+                if ext == ".csv":
+                    df_check = pd.read_csv(full_path, nrows=5)
+                else:
+                    df_check = pd.read_excel(full_path, nrows=5)
+                is_valid, _ = validate_worker_df(df_check)
+                if is_valid:
+                    return full_path
+            except Exception:
+                continue
+            
+    return None
+
+def get_col_val(row, candidates, default=""):
+    for c in candidates:
+        if c in row and pd.notna(row[c]):
+            val = str(row[c]).strip()
+            if val and val.lower() != "nan":
+                return val
+    return default
+
 def load_workers_database():
     global WORKERS_DATABASE, LAST_DB_MTIME
-    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    excel_db_path = get_db_file_path()
     loaded = []
-    if os.path.exists(excel_db_path):
+    if excel_db_path and os.path.exists(excel_db_path):
         try:
             LAST_DB_MTIME = os.path.getmtime(excel_db_path)
-            df = pd.read_excel(excel_db_path)
+            if excel_db_path.lower().endswith(".csv"):
+                df = pd.read_csv(excel_db_path)
+            else:
+                df = pd.read_excel(excel_db_path)
+                
             df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
             for _, row in df.iterrows():
-                rpe_val = str(row.get("rpe", row.get("rtt", row.get("rpu", "")))).strip()
-                nombre_val = str(row.get("nombre", row.get("nombre_del_trabajador", ""))).strip()
-                if not rpe_val or rpe_val == "nan" or not nombre_val or nombre_val == "nan":
+                rpe_val = get_col_val(row, ["rpe/rtt", "rpe_rtt", "rpe", "rtt", "rpu", "rpe/rtt_", "clave_rpe"])
+                nombre_val = get_col_val(row, ["nombre_de_trabajador", "nombre_del_trabajador", "nombre", "trabajador", "nombre_trabajador"])
+                if not rpe_val or not nombre_val:
                     continue
                 wtype = detect_worker_type(rpe_val)
-                p_actual = str(row.get("puesto_actual", row.get("puesto_base", wtype))).strip()
-                p_probar = str(row.get("puesto_probar", row.get("puesto", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)"))).strip()
-                area_val = str(row.get("area", row.get("zona", "ZONA TOLUCA"))).strip()
-                clave_val = str(row.get("clave", "623X5")).strip()
+                p_actual = get_col_val(row, ["puesto_actual", "puesto_base", "puesto", "puesto_del_trabajador"], wtype)
+                p_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar"], p_actual)
+                area_val = get_col_val(row, ["area", "zona", "departamento"], "ZONA TOLUCA")
+                clave_val = get_col_val(row, ["clave", "clave_area", "centro_de_trabajo"], "623X5")
                 loaded.append({
                     "rpe": rpe_val,
                     "nombre": nombre_val,
@@ -138,7 +213,7 @@ def load_workers_database():
                     "clave": clave_val
                 })
         except Exception as e:
-            print(f"Advertencia al leer base_datos_trabajadores.xlsx: {e}")
+            print(f"Advertencia al leer base de datos de trabajadores: {e}")
             
     if not loaded:
         loaded = DEFAULT_WORKERS.copy()
@@ -148,8 +223,8 @@ def load_workers_database():
 
 def get_workers_db():
     global WORKERS_DATABASE, LAST_DB_MTIME
-    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
-    current_mtime = os.path.getmtime(excel_db_path) if os.path.exists(excel_db_path) else 0
+    excel_db_path = get_db_file_path()
+    current_mtime = os.path.getmtime(excel_db_path) if (excel_db_path and os.path.exists(excel_db_path)) else 0
     if not WORKERS_DATABASE or current_mtime != LAST_DB_MTIME:
         load_workers_database()
     return WORKERS_DATABASE
@@ -164,10 +239,11 @@ def index():
 @app.route("/api/workers/info", methods=["GET"])
 def get_workers_db_info():
     """ Retorna información del estado actual de la base de datos de trabajadores """
-    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    excel_db_path = get_db_file_path()
     db = get_workers_db()
-    exists = os.path.exists(excel_db_path)
+    exists = excel_db_path is not None and os.path.exists(excel_db_path)
     last_mod = ""
+    filename = os.path.basename(excel_db_path) if exists else "Catálogo Predeterminado (8)"
     if exists:
         try:
             mtime = os.path.getmtime(excel_db_path)
@@ -178,7 +254,7 @@ def get_workers_db_info():
     return jsonify({
         "count": len(db),
         "file_exists": exists,
-        "filename": "base_datos_trabajadores.xlsx" if exists else "Catálogo Predeterminado (8)",
+        "filename": filename,
         "last_modified": last_mod
     })
 
@@ -186,9 +262,10 @@ def get_workers_db_info():
 def reload_workers_db_endpoint():
     """ Fuerza la recarga de la base de datos desde el archivo Excel en disco """
     db = load_workers_database()
-    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    excel_db_path = get_db_file_path()
     last_mod = ""
-    if os.path.exists(excel_db_path):
+    filename = os.path.basename(excel_db_path) if (excel_db_path and os.path.exists(excel_db_path)) else "Catálogo Predeterminado (8)"
+    if excel_db_path and os.path.exists(excel_db_path):
         try:
             mtime = os.path.getmtime(excel_db_path)
             from datetime import datetime
@@ -196,8 +273,9 @@ def reload_workers_db_endpoint():
         except Exception:
             last_mod = "Desconocida"
     return jsonify({
-        "message": "Base de datos recargada exitosamente desde el archivo Excel",
+        "message": f"Base de datos recargada exitosamente ({len(db)} registros)",
         "count": len(db),
+        "filename": filename,
         "last_modified": last_mod
     })
 
@@ -221,37 +299,70 @@ def search_workers():
 
 @app.route("/api/workers/upload-db", methods=["POST"])
 def upload_workers_db():
-    """ Permite subir un archivo Excel/CSV para actualizar la base de datos de trabajadores """
+    """ Permite subir cualquier archivo Excel/CSV para actualizar la base de datos de trabajadores """
     if "file" not in request.files:
         return jsonify({"error": "No se envió ningún archivo"}), 400
     uploaded_file = request.files["file"]
     if not uploaded_file.filename:
         return jsonify({"error": "Archivo no seleccionado"}), 400
         
-    target_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
     try:
-        filename = uploaded_file.filename.lower()
-        if filename.endswith(".csv"):
+        filename = uploaded_file.filename
+        ext = os.path.splitext(filename)[1].lower()
+        if ext not in [".xlsx", ".xls", ".csv"]:
+            return jsonify({"error": "Formato no soportado. El archivo debe ser .xlsx, .xls o .csv"}), 400
+            
+        if ext == ".csv":
             df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+            
+        is_valid, missing = validate_worker_df(df)
+        if not is_valid:
+            return jsonify({
+                "error": f"El archivo '{filename}' no contiene las columnas requeridas. Faltan: {', '.join(missing)}. Las columnas obligatorias son: RPE/RTT, NOMBRE DE TRABAJADOR, PUESTO."
+            }), 400
+
+        target_path = os.path.join(BASE_DIR, "BD_TRABAJADORES2026.xlsx")
+        if ext == ".csv":
             df.to_excel(target_path, index=False)
         else:
+            uploaded_file.seek(0)
             uploaded_file.save(target_path)
             
         workers = load_workers_database()
         from datetime import datetime
         last_mod = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
         return jsonify({
-            "message": "Base de datos de trabajadores cargada y actualizada con éxito",
+            "message": f"¡Base de datos cargada con éxito! ({len(workers)} trabajadores desde '{filename}')",
             "count": len(workers),
+            "filename": filename,
             "last_modified": last_mod
         })
     except Exception as e:
-        return jsonify({"error": f"Error guardando base de datos: {str(e)}"}), 500
+        return jsonify({"error": f"Error procesando archivo de base de datos: {str(e)}"}), 500
 
 @app.route("/api/workers/download-template-db", methods=["GET"])
 def download_workers_db_template():
     """ Genera plantilla Excel para la base de datos de trabajadores """
-    df = pd.DataFrame(DEFAULT_WORKERS)
+    sample_data = [
+        {
+            "RPE/RTT": "9L58M",
+            "NOMBRE DE TRABAJADOR": "JOSE LUIS MULIA RAMOS",
+            "PUESTO": "AUXILIAR ESPECIALIZADO"
+        },
+        {
+            "RPE/RTT": "85894",
+            "NOMBRE DE TRABAJADOR": "ERIKA ALEJANDRA MENDOZA GUTIERREZ",
+            "PUESTO": "AUXILIAR ESPECIALIZADO"
+        },
+        {
+            "RPE/RTT": "GA02W",
+            "NOMBRE DE TRABAJADOR": "VICTOR HUGO ESPINOSA AVALOS",
+            "PUESTO": "AYUDANTE LINIERO"
+        }
+    ]
+    df = pd.DataFrame(sample_data)
     output = io.BytesIO()
     with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
         df.to_excel(writer, index=False, sheet_name='Base_Trabajadores')
@@ -259,7 +370,7 @@ def download_workers_db_template():
     return send_file(
         output,
         as_attachment=True,
-        download_name="Plantilla_Base_Datos_Trabajadores_COS.xlsx",
+        download_name="BD_TRABAJADORES2026_Plantilla.xlsx",
         mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
     )
 
@@ -376,16 +487,17 @@ def generate_batch():
         
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
             for idx, row in df.iterrows():
-                rpe = str(row.get("rpe", row.get("rtt", row.get("rpu", "")))).strip()
-                nombre = str(row.get("nombre", row.get("nombre_del_trabajador", ""))).strip()
-                if not rpe or not nombre or rpe == "nan" or nombre == "nan":
+                rpe = get_col_val(row, ["rpe/rtt", "rpe_rtt", "rpe", "rtt", "rpu", "rpe/rtt_", "clave_rpe"])
+                nombre = get_col_val(row, ["nombre_de_trabajador", "nombre_del_trabajador", "nombre", "trabajador", "nombre_trabajador"])
+                if not rpe or not nombre:
                     continue
                     
-                puesto_actual = str(row.get("puesto_actual", row.get("puesto_base", ""))).strip()
-                area = str(row.get("area", row.get("zona", "ZONA TOLUCA"))).strip()
-                clave = str(row.get("clave", "623X5")).strip()
-                puesto_probar = str(row.get("puesto_probar", row.get("puesto", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)"))).strip()
-                fecha_fisica = str(row.get("fecha_fisica", row.get("fecha", "2026-08-14"))).strip()
+                wtype = detect_worker_type(rpe)
+                puesto_actual = get_col_val(row, ["puesto_actual", "puesto_base", "puesto", "puesto_del_trabajador"], wtype)
+                puesto_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar"], puesto_actual)
+                area = get_col_val(row, ["area", "zona", "departamento"], "ZONA TOLUCA")
+                clave = get_col_val(row, ["clave", "clave_area"], "623X5")
+                fecha_fisica = get_col_val(row, ["fecha_fisica", "fecha", "fecha_evaluacion"], "2026-08-14")
                 
                 profile_acts = get_profile_activities(puesto_probar, base_dir=BASE_DIR)
                 

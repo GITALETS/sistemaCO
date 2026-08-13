@@ -11,6 +11,7 @@ temp_downloads/
 # Carpetas de pruebas temporales
 test_output/
 test_output_31/
+test_output_db/
 test_verify_cleared/
 
 # Scripts de inspección y pruebas (no necesarios en producción)
