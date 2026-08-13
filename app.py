@@ -1,0 +1,474 @@
+import os
+import io
+import zipfile
+import shutil
+import importlib
+import pandas as pd
+from flask import Flask, request, jsonify, send_file, send_from_directory
+
+import excel_processor
+importlib.reload(excel_processor)
+
+from excel_processor import (
+    process_single_worker,
+    calculate_target_month_from_physical_date,
+    detect_worker_type,
+    generate_random_scores,
+    load_job_profiles,
+    get_profile_activities,
+    DEFAULT_ACTIVITIES,
+    DEFAULT_OFFICIALS
+)
+
+app = Flask(__name__, static_folder="static", static_url_path="")
+
+BASE_DIR = os.path.dirname(os.path.abspath(__file__))
+TEMPLATES_DIR = BASE_DIR
+TEMP_DIR = os.path.join(BASE_DIR, "temp_downloads")
+
+os.makedirs(TEMP_DIR, exist_ok=True)
+
+# Cargar perfiles de puestos al iniciar
+load_job_profiles(BASE_DIR)
+
+DEFAULT_WORKERS = [
+    {
+        "rpe": "G982P",
+        "nombre": "JOHAN JESUS ORIVE GAMA",
+        "worker_type": "TEMPORAL SINDICALIZADO",
+        "puesto_actual": "TEMPORAL SINDICALIZADO",
+        "puesto_probar": "AYUDANTE LINIERO (SERVICIO AL CLIENTE)",
+        "area": "ZONA TOLUCA",
+        "clave": "623X5"
+    },
+    {
+        "rpe": "H1029",
+        "nombre": "MARIA FERNANDA LOPEZ GONZALEZ",
+        "worker_type": "TEMPORAL SINDICALIZADO",
+        "puesto_actual": "TEMPORAL SINDICALIZADO",
+        "puesto_probar": "TECNICO SUBESTACIONES",
+        "area": "ZONA TOLUCA",
+        "clave": "623X5"
+    },
+    {
+        "rpe": "F4810",
+        "nombre": "DIEGO DE LA PAZ ORIVE OSORIO",
+        "worker_type": "TEMPORAL SINDICALIZADO",
+        "puesto_actual": "TEMPORAL SINDICALIZADO",
+        "puesto_probar": "AUXILIAR SERVICIOS I",
+        "area": "ZONA TOLUCA",
+        "clave": "DN500"
+    },
+    {
+        "rpe": "84729",
+        "nombre": "CARLOS ROBERTO MARTINEZ SANCHEZ",
+        "worker_type": "BASE SINDICALIZADO",
+        "puesto_actual": "LINIERO LV",
+        "puesto_probar": "ENCARGADO SECCION COMERCIAL",
+        "area": "ZONA TOLUCA",
+        "clave": "DN500"
+    },
+    {
+        "rpe": "75312",
+        "nombre": "ROBERTO CARLOS GOMEZ HERNANDEZ",
+        "worker_type": "BASE SINDICALIZADO",
+        "puesto_actual": "SOBRESTANTE",
+        "puesto_probar": "SOBRESTANTE",
+        "area": "ZONA TOLUCA",
+        "clave": "623X5"
+    },
+    {
+        "rpe": "93812",
+        "nombre": "ANA PATRICIA RAMIREZ SALAZAR",
+        "worker_type": "BASE SINDICALIZADO",
+        "puesto_actual": "AUXILIAR COMERCIAL",
+        "puesto_probar": "AUXILIAR COMERCIAL",
+        "area": "ZONA TOLUCA",
+        "clave": "DN500"
+    },
+    {
+        "rpe": "51204",
+        "nombre": "ALEJANDRO HERNANDEZ DIAZ",
+        "worker_type": "BASE SINDICALIZADO",
+        "puesto_actual": "VERIFICADOR CALIBRADOR I",
+        "puesto_probar": "VERIFICADOR CALIBRADOR I",
+        "area": "ZONA TOLUCA",
+        "clave": "623X5"
+    },
+    {
+        "rpe": "G3910",
+        "nombre": "JOSE LUIS GARCIA MORALES",
+        "worker_type": "TEMPORAL SINDICALIZADO",
+        "puesto_actual": "TEMPORAL SINDICALIZADO",
+        "puesto_probar": "MANIOBRISTA DE ALMACEN DIVISIONAL",
+        "area": "ZONA TOLUCA",
+        "clave": "623X5"
+    }
+]
+
+WORKERS_DATABASE = []
+LAST_DB_MTIME = 0
+
+def load_workers_database():
+    global WORKERS_DATABASE, LAST_DB_MTIME
+    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    loaded = []
+    if os.path.exists(excel_db_path):
+        try:
+            LAST_DB_MTIME = os.path.getmtime(excel_db_path)
+            df = pd.read_excel(excel_db_path)
+            df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+            for _, row in df.iterrows():
+                rpe_val = str(row.get("rpe", row.get("rtt", row.get("rpu", "")))).strip()
+                nombre_val = str(row.get("nombre", row.get("nombre_del_trabajador", ""))).strip()
+                if not rpe_val or rpe_val == "nan" or not nombre_val or nombre_val == "nan":
+                    continue
+                wtype = detect_worker_type(rpe_val)
+                p_actual = str(row.get("puesto_actual", row.get("puesto_base", wtype))).strip()
+                p_probar = str(row.get("puesto_probar", row.get("puesto", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)"))).strip()
+                area_val = str(row.get("area", row.get("zona", "ZONA TOLUCA"))).strip()
+                clave_val = str(row.get("clave", "623X5")).strip()
+                loaded.append({
+                    "rpe": rpe_val,
+                    "nombre": nombre_val,
+                    "worker_type": wtype,
+                    "puesto_actual": p_actual,
+                    "puesto_probar": p_probar,
+                    "area": area_val,
+                    "clave": clave_val
+                })
+        except Exception as e:
+            print(f"Advertencia al leer base_datos_trabajadores.xlsx: {e}")
+            
+    if not loaded:
+        loaded = DEFAULT_WORKERS.copy()
+        
+    WORKERS_DATABASE = loaded
+    return WORKERS_DATABASE
+
+def get_workers_db():
+    global WORKERS_DATABASE, LAST_DB_MTIME
+    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    current_mtime = os.path.getmtime(excel_db_path) if os.path.exists(excel_db_path) else 0
+    if not WORKERS_DATABASE or current_mtime != LAST_DB_MTIME:
+        load_workers_database()
+    return WORKERS_DATABASE
+
+# Cargar base de datos de trabajadores al iniciar
+load_workers_database()
+
+@app.route("/")
+def index():
+    return send_from_directory(app.static_folder, "index.html")
+
+@app.route("/api/workers/info", methods=["GET"])
+def get_workers_db_info():
+    """ Retorna información del estado actual de la base de datos de trabajadores """
+    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    db = get_workers_db()
+    exists = os.path.exists(excel_db_path)
+    last_mod = ""
+    if exists:
+        try:
+            mtime = os.path.getmtime(excel_db_path)
+            from datetime import datetime
+            last_mod = datetime.fromtimestamp(mtime).strftime("%d/%m/%Y %H:%M:%S")
+        except Exception:
+            last_mod = "Desconocida"
+    return jsonify({
+        "count": len(db),
+        "file_exists": exists,
+        "filename": "base_datos_trabajadores.xlsx" if exists else "Catálogo Predeterminado (8)",
+        "last_modified": last_mod
+    })
+
+@app.route("/api/workers/reload-db", methods=["POST"])
+def reload_workers_db_endpoint():
+    """ Fuerza la recarga de la base de datos desde el archivo Excel en disco """
+    db = load_workers_database()
+    excel_db_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    last_mod = ""
+    if os.path.exists(excel_db_path):
+        try:
+            mtime = os.path.getmtime(excel_db_path)
+            from datetime import datetime
+            last_mod = datetime.fromtimestamp(mtime).strftime("%d/%m/%Y %H:%M:%S")
+        except Exception:
+            last_mod = "Desconocida"
+    return jsonify({
+        "message": "Base de datos recargada exitosamente desde el archivo Excel",
+        "count": len(db),
+        "last_modified": last_mod
+    })
+
+@app.route("/api/workers/search", methods=["GET"])
+def search_workers():
+    """ Filtra la base de datos de trabajadores por RPE/RTT, Nombre o Puesto """
+    query = request.args.get("q", "").strip().lower()
+    db = get_workers_db()
+    if not query:
+        return jsonify(db[:15])
+    
+    results = []
+    for w in db:
+        rpe_str = str(w.get("rpe", "")).lower()
+        nom_str = str(w.get("nombre", "")).lower()
+        pact_str = str(w.get("puesto_actual", "")).lower()
+        pprob_str = str(w.get("puesto_probar", "")).lower()
+        if (query in rpe_str or query in nom_str or query in pact_str or query in pprob_str):
+            results.append(w)
+    return jsonify(results[:15])
+
+@app.route("/api/workers/upload-db", methods=["POST"])
+def upload_workers_db():
+    """ Permite subir un archivo Excel/CSV para actualizar la base de datos de trabajadores """
+    if "file" not in request.files:
+        return jsonify({"error": "No se envió ningún archivo"}), 400
+    uploaded_file = request.files["file"]
+    if not uploaded_file.filename:
+        return jsonify({"error": "Archivo no seleccionado"}), 400
+        
+    target_path = os.path.join(BASE_DIR, "base_datos_trabajadores.xlsx")
+    try:
+        filename = uploaded_file.filename.lower()
+        if filename.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+            df.to_excel(target_path, index=False)
+        else:
+            uploaded_file.save(target_path)
+            
+        workers = load_workers_database()
+        from datetime import datetime
+        last_mod = datetime.now().strftime("%d/%m/%Y %H:%M:%S")
+        return jsonify({
+            "message": "Base de datos de trabajadores cargada y actualizada con éxito",
+            "count": len(workers),
+            "last_modified": last_mod
+        })
+    except Exception as e:
+        return jsonify({"error": f"Error guardando base de datos: {str(e)}"}), 500
+
+@app.route("/api/workers/download-template-db", methods=["GET"])
+def download_workers_db_template():
+    """ Genera plantilla Excel para la base de datos de trabajadores """
+    df = pd.DataFrame(DEFAULT_WORKERS)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Base_Trabajadores')
+    output.seek(0)
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="Plantilla_Base_Datos_Trabajadores_COS.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+@app.route("/api/profiles", methods=["GET"])
+def get_profiles():
+    """ Retorna la lista de perfiles de puesto y sus actividades asociadas del Gantt. """
+    profiles = load_job_profiles(BASE_DIR)
+    result = []
+    for key, pinfo in profiles.items():
+        result.append({
+            "key": key,
+            "puesto": pinfo["puesto"],
+            "activities": pinfo["activities"]
+        })
+    return jsonify(result)
+
+@app.route("/api/profile-activities", methods=["POST"])
+def get_activities_for_puesto():
+    data = request.json or {}
+    puesto = data.get("puesto", "")
+    activities = get_profile_activities(puesto, base_dir=BASE_DIR)
+    return jsonify({"puesto": puesto, "activities": activities})
+
+@app.route("/api/preview-info", methods=["POST"])
+def preview_info():
+    data = request.json or {}
+    rpe = data.get("rpe", "")
+    puesto_actual = data.get("puesto_actual", data.get("puesto_base", ""))
+    puesto_probar = data.get("puesto_probar", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)")
+    fecha_fisica = data.get("fecha_fisica", "2026-08-14")
+    
+    worker_type = detect_worker_type(rpe)
+    period_info = calculate_target_month_from_physical_date(fecha_fisica)
+    activities = get_profile_activities(puesto_probar, base_dir=BASE_DIR)
+    
+    apt, act, sum_apt, sum_act, total = generate_random_scores(80, 100)
+    
+    return jsonify({
+        "rpe": rpe,
+        "worker_type": worker_type,
+        "puesto_actual": puesto_actual or worker_type,
+        "period_info": period_info,
+        "activities": activities,
+        "sample_scores": {
+            "aptitudes": apt,
+            "actitudes": act,
+            "sum_aptitudes": sum_apt,
+            "sum_actitudes": sum_act,
+            "total": total
+        },
+        "default_officials": DEFAULT_OFFICIALS
+    })
+
+@app.route("/api/generate-single", methods=["POST"])
+def generate_single():
+    data = request.json or {}
+    if not data.get("nombre") or not data.get("rpe"):
+        return jsonify({"error": "Nombre y RPE son obligatorios"}), 400
+        
+    session_id = f"single_{int(os.times().elapsed * 1000)}"
+    work_dir = os.path.join(TEMP_DIR, session_id)
+    os.makedirs(work_dir, exist_ok=True)
+    
+    try:
+        files = process_single_worker(data, TEMPLATES_DIR, work_dir)
+        
+        rpe_clean = str(data.get("rpe")).strip()
+        nombre_clean = str(data.get("nombre")).strip().replace(" ", "_")
+        zip_filename = f"Formatos_COS_{rpe_clean}_{nombre_clean}.zip"
+        zip_path = os.path.join(TEMP_DIR, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for fpath in files:
+                arcname = os.path.basename(fpath)
+                zipf.write(fpath, arcname)
+                
+        shutil.rmtree(work_dir, ignore_errors=True)
+        
+        return send_file(zip_path, as_attachment=True, download_name=zip_filename)
+    except Exception as e:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return jsonify({"error": str(e)}), 500
+
+@app.route("/api/generate-batch", methods=["POST"])
+def generate_batch():
+    if "file" not in request.files:
+        return jsonify({"error": "No se envió ningún archivo"}), 400
+        
+    uploaded_file = request.files["file"]
+    if not uploaded_file.filename:
+        return jsonify({"error": "Archivo no seleccionado"}), 400
+        
+    session_id = f"batch_{int(os.times().elapsed * 1000)}"
+    work_dir = os.path.join(TEMP_DIR, session_id)
+    os.makedirs(work_dir, exist_ok=True)
+    
+    try:
+        filename = uploaded_file.filename.lower()
+        if filename.endswith(".csv"):
+            df = pd.read_csv(uploaded_file)
+        else:
+            df = pd.read_excel(uploaded_file)
+            
+        df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
+        
+        resp_seg = request.form.get("responsable_seguimiento", DEFAULT_OFFICIALS["responsable_seguimiento"])
+        resp_enc = request.form.get("responsable_encuesta", DEFAULT_OFFICIALS["responsable_encuesta"])
+        jefe_area = request.form.get("jefe_area", DEFAULT_OFFICIALS["jefe_area"])
+        rep_cap = request.form.get("representante_capacitacion", DEFAULT_OFFICIALS["representante_capacitacion"])
+
+        processed_workers = 0
+        zip_filename = f"Paquete_Masivo_COS_{int(os.times().elapsed)}.zip"
+        zip_path = os.path.join(TEMP_DIR, zip_filename)
+        
+        with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
+            for idx, row in df.iterrows():
+                rpe = str(row.get("rpe", row.get("rtt", row.get("rpu", "")))).strip()
+                nombre = str(row.get("nombre", row.get("nombre_del_trabajador", ""))).strip()
+                if not rpe or not nombre or rpe == "nan" or nombre == "nan":
+                    continue
+                    
+                puesto_actual = str(row.get("puesto_actual", row.get("puesto_base", ""))).strip()
+                area = str(row.get("area", row.get("zona", "ZONA TOLUCA"))).strip()
+                clave = str(row.get("clave", "623X5")).strip()
+                puesto_probar = str(row.get("puesto_probar", row.get("puesto", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)"))).strip()
+                fecha_fisica = str(row.get("fecha_fisica", row.get("fecha", "2026-08-14"))).strip()
+                
+                profile_acts = get_profile_activities(puesto_probar, base_dir=BASE_DIR)
+                
+                worker_data = {
+                    "rpe": rpe,
+                    "nombre": nombre,
+                    "puesto_actual": puesto_actual,
+                    "area": area,
+                    "clave": clave,
+                    "puesto_probar": puesto_probar,
+                    "fecha_fisica": fecha_fisica,
+                    "activities": profile_acts,
+                    "responsable_seguimiento": resp_seg,
+                    "responsable_encuesta": resp_enc,
+                    "jefe_area": jefe_area,
+                    "representante_capacitacion": rep_cap
+                }
+                
+                worker_folder_name = f"{rpe}_{nombre.replace(' ', '_')}"
+                worker_out_dir = os.path.join(work_dir, worker_folder_name)
+                files = process_single_worker(worker_data, TEMPLATES_DIR, worker_out_dir)
+                
+                for fpath in files:
+                    arcname = os.path.join(worker_folder_name, os.path.basename(fpath))
+                    zipf.write(fpath, arcname)
+                    
+                processed_workers += 1
+                
+        shutil.rmtree(work_dir, ignore_errors=True)
+        
+        if processed_workers == 0:
+            return jsonify({"error": "No se encontraron filas válidas con RPE/RTT y Nombre"}), 400
+            
+        return send_file(zip_path, as_attachment=True, download_name=zip_filename)
+        
+    except Exception as e:
+        shutil.rmtree(work_dir, ignore_errors=True)
+        return jsonify({"error": f"Error procesando archivo masivo: {str(e)}"}), 500
+
+@app.route("/api/download-template-excel", methods=["GET"])
+def download_template_excel():
+    data = [
+        {
+            "rpe": "G982P",
+            "nombre": "JOHAN JESUS ORIVE GAMA",
+            "puesto_actual": "TEMPORAL SINDICALIZADO",
+            "area": "ZONA TOLUCA",
+            "clave": "623X5",
+            "puesto_probar": "AYUDANTE LINIERO (SERVICIO AL CLIENTE)",
+            "fecha_fisica": "2026-08-14"
+        },
+        {
+            "rpe": "84729",
+            "nombre": "CARLOS ROBERTO MARTINEZ SANCHEZ",
+            "puesto_actual": "LINIERO LV",
+            "area": "ZONA TOLUCA",
+            "clave": "DN500",
+            "puesto_probar": "ENCARGADO SECCION COMERCIAL",
+            "fecha_fisica": "2026-08-14"
+        },
+        {
+            "rpe": "H1029",
+            "nombre": "MARIA FERNANDA LOPEZ GONZALEZ",
+            "puesto_actual": "TEMPORAL SINDICALIZADO",
+            "area": "ZONA TOLUCA",
+            "clave": "623X5",
+            "puesto_probar": "TECNICO SUBESTACIONES",
+            "fecha_fisica": "2026-08-14"
+        }
+    ]
+    df = pd.DataFrame(data)
+    output = io.BytesIO()
+    with pd.ExcelWriter(output, engine='xlsxwriter') as writer:
+        df.to_excel(writer, index=False, sheet_name='Trabajadores')
+    output.seek(0)
+    
+    return send_file(
+        output,
+        as_attachment=True,
+        download_name="Plantilla_Carga_Masiva_COS.xlsx",
+        mimetype="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet"
+    )
+
+if __name__ == "__main__":
+    print("Iniciando servidor SistemaCOS en http://localhost:5000")
+    app.run(host="0.0.0.0", port=5000, debug=True)

@@ -1,0 +1,377 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>SistemaCOS - Correspondencia y Evaluación de Personal</title>
+    <link rel="preconnect" href="https://fonts.googleapis.com">
+    <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+    <link
+        href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap"
+        rel="stylesheet">
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="styles.css">
+</head>
+
+<body>
+    <div class="app-container">
+        <!-- Header CFE Institucional -->
+        <header class="app-header cfe-header">
+            <div class="header-brand">
+                <div class="brand-logo cfe-logo">
+                    <i class="fa-solid fa-bolt-lightning"></i>
+                </div>
+                <div class="brand-text">
+                    <p><i class="fa-solid fa-folder-tree"></i> SistemaCOS &bull; Evaluación y Correspondencia de Personal</p>
+                </div>
+            </div>
+
+            <nav class="app-tabs">
+                <button id="tab-btn-single" class="tab-btn active" onclick="switchTab('single')">
+                    <i class="fa-solid fa-user-pen"></i> Captura Individual
+                </button>
+                <button id="tab-btn-batch" class="tab-btn" onclick="switchTab('batch')">
+                    <i class="fa-solid fa-file-excel"></i> Carga Masiva (Excel)
+                </button>
+                <button id="tab-btn-officials" class="tab-btn" onclick="switchTab('officials')">
+                    <i class="fa-solid fa-sliders"></i> Firmas y Base de Datos
+                </button>
+            </nav>
+        </header>
+
+        <!-- Dynamic Database Status Indicator Bar -->
+        <div class="db-status-bar" id="db-status-bar">
+            <div class="db-status-info">
+                <i class="fa-solid fa-database text-cfe"></i>
+                <span>Catálogo de Trabajadores: <strong id="bar-db-count">...</strong> Trabajadores</span>
+                <span class="db-divider">|</span>
+                <span class="db-last-mod"><i class="fa-solid fa-clock-rotate-left"></i> Modificado: <strong id="bar-db-time">...</strong></span>
+                <span class="db-divider">|</span>
+                <span class="db-file-badge" id="bar-db-file"><i class="fa-solid fa-file-csv"></i> base_datos_trabajadores.xlsx</span>
+            </div>
+            <div class="db-status-actions">
+                <button type="button" class="btn-xs btn-outline-cfe" onclick="reloadWorkersDb()" title="Recargar desde el archivo Excel guardado en disco">
+                    <i class="fa-solid fa-rotate-right"></i> Recargar Base de Datos
+                </button>
+                <button type="button" class="btn-xs btn-cfe" onclick="document.getElementById('input-quick-file-db').click()" title="Subir y reemplazar el archivo Excel de la base de datos">
+                    <i class="fa-solid fa-cloud-arrow-up"></i> Actualizar Excel
+                </button>
+                <input type="file" id="input-quick-file-db" accept=".xlsx, .xls, .csv" style="display: none;" onchange="handleDbFileUploaded(event)">
+            </div>
+        </div>
+
+        <!-- Main Content Area -->
+        <main class="app-main">
+            <!-- TAB 1: CAPTURA INDIVIDUAL -->
+            <section id="tab-content-single" class="tab-content active">
+                <div class="grid-2col">
+                    <!-- Left: Form Input -->
+                    <div class="card glass-card">
+                        <div class="card-header">
+                            <h2><i class="fa-solid fa-id-card-clip text-cfe"></i> Datos del Trabajador</h2>
+                            <span class="badge-tag" id="worker-type-badge"><i class="fa-solid fa-user-clock"></i> TEMPORAL SINDICALIZADO (RTT)</span>
+                        </div>
+
+                        <!-- Live Worker Search Box -->
+                        <div class="search-box-wrapper margin-bottom-md">
+                            <div class="search-box-header">
+                                <label for="input-worker-search"><i class="fa-solid fa-magnifying-glass text-cfe"></i> Buscar Trabajador en Catálogo (RPE / RTT o Nombre)</label>
+                            </div>
+                            <div class="search-input-group">
+                                <i class="fa-solid fa-magnifying-glass search-icon"></i>
+                                <input type="text" id="input-worker-search"
+                                    placeholder="Escribe RPE / RTT (ej. G982P, 84729) o Nombre del trabajador..."
+                                    autocomplete="off" oninput="handleWorkerSearch(this.value)"
+                                    onfocus="handleWorkerSearch(this.value)">
+                                <button type="button" class="btn-clear-search hidden" id="btn-clear-search"
+                                    onclick="clearWorkerSearch()">
+                                    <i class="fa-solid fa-xmark"></i>
+                                </button>
+                            </div>
+                            <div id="worker-search-results" class="search-results-dropdown hidden"></div>
+                        </div>
+
+                        <form id="form-single-worker" onsubmit="handleSingleGenerate(event)">
+                            <div class="form-grid">
+                                <div class="form-group col-span-2">
+                                    <label for="input-nombre"><i class="fa-solid fa-user"></i> Nombre Completo del Trabajador</label>
+                                    <input type="text" id="input-nombre" name="nombre"
+                                        value="DIEGO DE LA PAZ ORIVE OSORIO" required
+                                        placeholder="Ej. DIEGO DE LA PAZ ORIVE OSORIO" oninput="updatePreview()">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="input-rpe"><i class="fa-solid fa-fingerprint"></i> RPE / RTT (5 Caracteres)</label>
+                                    <input type="text" id="input-rpe" name="rpe" value="G982P" maxlength="5"
+                                        minlength="5" required placeholder="Ej. G982P o 84729"
+                                        oninput="handleRpeInput()">
+                                    <div id="rpe-warning-badge" class="date-warning-text hidden"></div>
+                                    <small class="help-text"><i class="fa-solid fa-circle-info"></i> Letra inicial = RTT (Temporal) | Número = RPE (Base)</small>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="input-clave"><i class="fa-solid fa-key"></i> Clave Presupuestal</label>
+                                    <input type="text" id="input-clave" name="clave" value="623X5" required
+                                        placeholder="Ej. 623X5 o DN500">
+                                </div>
+
+                                <div class="form-group col-span-2">
+                                    <label for="input-puesto-actual"><i class="fa-solid fa-briefcase"></i> Puesto Actual / Base del Trabajador</label>
+                                    <input type="text" id="input-puesto-actual" name="puesto_actual"
+                                        value="TEMPORAL SINDICALIZADO" required
+                                        placeholder="Ej. LINIERO LV o TEMPORAL SINDICALIZADO" oninput="updatePreview()">
+                                    <small class="help-text"><i class="fa-solid fa-circle-info"></i> Para personal de base, indica su categoría titular (ej. LINIERO LV).</small>
+                                </div>
+
+                                <div class="form-group col-span-2">
+                                    <label for="select-perfil-puesto"><i class="fa-solid fa-layer-group"></i> Perfil de Puesto (Actividades de Gantt)</label>
+                                    <select id="select-perfil-puesto" onchange="handleProfileSelectChange(this.value)">
+                                        <option value="">-- Seleccionar Perfil de Puesto Registrado --</option>
+                                        <!-- Loaded dynamically via API -->
+                                    </select>
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="input-area"><i class="fa-solid fa-building"></i> Zona / Área de Trabajo</label>
+                                    <input type="text" id="input-area" name="area" value="ZONA TOLUCA" required
+                                        placeholder="Ej. ZONA TOLUCA">
+                                </div>
+
+                                <div class="form-group">
+                                    <label for="input-puesto-probar"><i class="fa-solid fa-user-gear"></i> Puesto a Probar / Evaluado</label>
+                                    <input type="text" id="input-puesto-probar" name="puesto_probar"
+                                        value="AYUDANTE LINIERO (SERVICIO AL CLIENTE)" required
+                                        placeholder="Ej. AYUDANTE LINIERO"
+                                        onchange="handlePuestoInputChange(this.value)">
+                                </div>
+
+                                <div class="form-group col-span-2">
+                                    <label for="input-fecha-fisica"><i class="fa-solid fa-calendar-days"></i> Fecha Física de Entrega (Días Hábiles Lunes-Viernes)</label>
+                                    <input type="date" id="input-fecha-fisica" name="fecha_fisica" value="2026-08-14"
+                                        required>
+                                    <div id="date-warning-badge" class="date-warning-text hidden"></div>
+                                    <small class="help-text"><i class="fa-solid fa-circle-info"></i> Se calculará automáticamente el mes hábil anterior para la matriz Gantt.</small>
+                                </div>
+                            </div>
+
+                            <!-- Gantt Activities Section -->
+                            <div class="section-divider">
+                                <h3><i class="fa-solid fa-list-check text-cfe"></i> Actividades del Cronograma (Gantt) <span
+                                        id="activities-profile-count" class="badge-count">6 Actividades</span></h3>
+                                <button type="button" class="btn-sm btn-secondary" onclick="addActivityRow()">
+                                    <i class="fa-solid fa-plus"></i> Añadir Actividad
+                                </button>
+                            </div>
+                            <div id="activities-container" class="activities-list">
+                                <!-- Dynamic activities loaded by JS -->
+                            </div>
+
+                            <div class="form-actions margin-top-lg">
+                                <button type="submit" id="btn-submit-single" class="btn-primary btn-glow">
+                                    <i class="fa-solid fa-file-zipper"></i> Generar Paquete de 3 Formatos Excel (.ZIP)
+                                </button>
+                            </div>
+                        </form>
+                    </div>
+
+                    <!-- Right: Live Interactive Preview -->
+                    <div class="card glass-card preview-card">
+                        <div class="card-header">
+                            <h2><i class="fa-solid fa-eye text-cfe"></i> Previsualización Inteligente</h2>
+                            <span class="status-dot green"></span>
+                        </div>
+
+                        <div class="preview-metric-box">
+                            <div class="metric-item">
+                                <span class="metric-label"><i class="fa-solid fa-calendar-check text-cfe"></i> Periodo Evaluación</span>
+                                <strong class="metric-value text-gold" id="prev-periodo-str">01 AL 31 DE JULIO 2026</strong>
+                            </div>
+                            <div class="metric-item">
+                                <span class="metric-label"><i class="fa-solid fa-business-time text-cfe"></i> Días Hábiles Gantt</span>
+                                <strong class="metric-value text-cyan" id="prev-dias-habiles">23 Días (Sin Fines de Semana)</strong>
+                            </div>
+                        </div>
+
+                        <div class="preview-details">
+                            <h3><i class="fa-solid fa-file-contract text-cfe"></i> Resumen de Vinculación en Formatos</h3>
+                            <ul class="preview-list">
+                                <li>
+                                    <i class="fa-solid fa-circle-check text-green"></i>
+                                    <strong>Formatos Vinculados:</strong> <code>CO-03-01</code>, <code>CO-03-02</code> y <code>CO-03-03</code>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check text-green"></i>
+                                    <strong>Tipo Trabajador:</strong> <span id="prev-worker-type-text">TEMPORAL SINDICALIZADO (RTT)</span>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check text-green"></i>
+                                    <strong>Puesto Base/Actual:</strong> <strong id="prev-puesto-actual-text" class="text-gold">TEMPORAL SINDICALIZADO</strong>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check text-green"></i>
+                                    <strong>Perfil Evaluado:</strong> <strong id="prev-profile-matched" class="text-cyan">AYUDANTE LINIERO</strong>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check text-green"></i>
+                                    <strong>Puntuación Simulada:</strong> Suma Ponderada = <strong id="prev-total-puntos" class="text-gold">92 / 100 (&ge; 80)</strong>
+                                </li>
+                                <li>
+                                    <i class="fa-solid fa-circle-check text-green"></i>
+                                    <strong>Fórmulas de Excel:</strong> <code>=SUM(H19:H23)</code> y <code>=SUM(H30:H34)</code> Preservadas Intactas
+                                </li>
+                            </ul>
+
+                            <div class="preview-mini-table-title">
+                                <span><i class="fa-solid fa-star-half-stroke text-cfe"></i> Simulación de Calificaciones</span>
+                                <button type="button" class="btn-xs btn-outline" onclick="regenerateScoresPreview()">
+                                    <i class="fa-solid fa-rotate"></i> Regenerar
+                                </button>
+                            </div>
+                            <div class="mini-scores-grid" id="mini-scores-container">
+                                <!-- Dynamic mini scores preview -->
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 2: CARGA MASIVA (EXCEL / CSV) -->
+            <section id="tab-content-batch" class="tab-content">
+                <div class="card glass-card">
+                    <div class="card-header">
+                        <div>
+                            <h2><i class="fa-solid fa-cloud-arrow-up text-cfe"></i> Carga Masiva de Trabajadores por Lote</h2>
+                            <p class="subtitle">Sube una lista en Excel (.xlsx) o CSV para procesar múltiples trabajadores simultáneamente.</p>
+                        </div>
+                        <a href="/api/download-template-excel" class="btn-secondary btn-sm">
+                            <i class="fa-solid fa-download"></i> Descargar Plantilla de Ejemplo (.xlsx)
+                        </a>
+                    </div>
+
+                    <div class="dropzone-area" id="dropzone"
+                        onclick="document.getElementById('input-file-batch').click()">
+                        <input type="file" id="input-file-batch" accept=".xlsx, .xls, .csv" style="display: none;"
+                            onchange="handleFileSelected(event)">
+                        <div class="dropzone-icon">
+                            <i class="fa-solid fa-file-excel"></i>
+                        </div>
+                        <h3>Arrastra y suelta tu archivo Excel o CSV aquí</h3>
+                        <p>O haz clic para seleccionar el archivo desde tu equipo</p>
+                        <span class="file-spec">Formatos soportados: .xlsx, .xls, .csv</span>
+                    </div>
+
+                    <div id="file-info-container" class="file-info-box hidden">
+                        <div class="file-info-content">
+                            <i class="fa-solid fa-file-lines text-cyan"></i>
+                            <div>
+                                <h4 id="batch-file-name">lista_trabajadores.xlsx</h4>
+                                <span id="batch-file-size" class="text-muted">15.4 KB</span>
+                            </div>
+                        </div>
+                        <button type="button" class="btn-xs btn-danger" onclick="clearBatchFile()"><i
+                                class="fa-solid fa-xmark"></i> Quitar</button>
+                    </div>
+
+                    <div class="form-actions margin-top-lg">
+                        <button type="button" id="btn-process-batch" class="btn-primary btn-glow btn-lg"
+                            onclick="handleBatchGenerate()" disabled>
+                            <i class="fa-solid fa-gears"></i> Procesar Lote y Descargar Paquete ZIP
+                        </button>
+                    </div>
+
+                    <!-- Processing Progress Loader -->
+                    <div id="batch-loader" class="loader-overlay hidden">
+                        <div class="spinner"></div>
+                        <h3 id="loader-title">Procesando Formatos Excel por Lote...</h3>
+                        <p id="loader-subtitle">Vinculando perfiles de puesto y actividades de Gantt por cada trabajador.</p>
+                    </div>
+                </div>
+            </section>
+
+            <!-- TAB 3: CONFIGURACIÓN DE FIRMAS Y BASE DE DATOS -->
+            <section id="tab-content-officials" class="tab-content">
+                <!-- Database Excel Management Card -->
+                <div class="card glass-card max-width-800 margin-bottom-lg">
+                    <div class="card-header">
+                        <div>
+                            <h2><i class="fa-solid fa-database text-cfe"></i> Base de Datos Oficial de Trabajadores (Excel)</h2>
+                            <p class="subtitle">Sube tu archivo Excel <code>base_datos_trabajadores.xlsx</code>. Al buscar trabajadores, se consultará este catálogo actualizado en tiempo real.</p>
+                        </div>
+                        <a href="/api/workers/download-template-db" class="btn-secondary btn-sm">
+                            <i class="fa-solid fa-download"></i> Descargar Plantilla (.xlsx)
+                        </a>
+                    </div>
+                    <div class="db-upload-box">
+                        <input type="file" id="input-file-db" accept=".xlsx, .xls, .csv" style="display: none;"
+                            onchange="handleDbFileUploaded(event)">
+                        <div class="db-upload-controls">
+                            <button type="button" class="btn-primary btn-outline"
+                                onclick="document.getElementById('input-file-db').click()">
+                                <i class="fa-solid fa-file-excel"></i> Subir / Reemplazar Base de Datos (.xlsx / .csv)
+                            </button>
+                            <button type="button" class="btn-secondary" onclick="reloadWorkersDb()">
+                                <i class="fa-solid fa-rotate-right"></i> Recargar desde Disco
+                            </button>
+                        </div>
+                        <div class="db-status-badge-container">
+                            <span id="db-status-badge" class="badge-tag">
+                                <i class="fa-solid fa-circle-check text-green"></i> Base de Datos: <strong id="db-workers-count">...</strong> Trabajadores
+                            </span>
+                            <span class="db-last-mod-badge" id="db-last-mod-badge"><i class="fa-solid fa-clock"></i> Última Modificación: --</span>
+                        </div>
+                    </div>
+                </div>
+
+                <div class="card glass-card max-width-800">
+                    <div class="card-header">
+                        <div>
+                            <h2><i class="fa-solid fa-file-signature text-cfe"></i> Configuración de Firmas e Institucionales</h2>
+                            <p class="subtitle">Servidores públicos que firmarán en el pie de página de los formatos generados.</p>
+                        </div>
+                    </div>
+                    <form id="form-officials" onsubmit="saveOfficials(event)">
+                        <div class="form-grid">
+                            <div class="form-group col-span-2">
+                                <label for="off-seguimiento"><i class="fa-solid fa-user-check"></i> Responsable del Seguimiento y Valoración (Formato CO-03-01 / CO-03-02)</label>
+                                <input type="text" id="off-seguimiento" value="LIC. IVONNE REZA RUGERIO" required>
+                            </div>
+
+                            <div class="form-group col-span-2">
+                                <label for="off-encuesta"><i class="fa-solid fa-user-pen"></i> Responsable del Seguimiento (Formato Encuesta CO-03-03)</label>
+                                <input type="text" id="off-encuesta" value="LIC. ERYBENALY ABARCA VARGAS" required>
+                            </div>
+
+                            <div class="form-group col-span-2">
+                                <label for="off-jefe"><i class="fa-solid fa-user-tie"></i> Jefe del Área de Trabajo (Formato Encuesta CO-03-03)</label>
+                                <input type="text" id="off-jefe" value="ING. VICENTE G. RAMOS HUERTA" required>
+                            </div>
+
+                            <div class="form-group col-span-2">
+                                <label for="off-capacitacion"><i class="fa-solid fa-award"></i> Representante de Capacitación (Formato Encuesta CO-03-03)</label>
+                                <input type="text" id="off-capacitacion" value="LIC. IVONNE REZA RUGERIO" required>
+                            </div>
+                        </div>
+
+                        <div class="form-actions margin-top-lg">
+                            <button type="submit" class="btn-primary">
+                                <i class="fa-solid fa-floppy-disk"></i> Guardar Ajustes de Firmas
+                            </button>
+                        </div>
+                    </form>
+                </div>
+            </section>
+        </main>
+
+        <footer class="app-footer">
+            <p><i class="fa-solid fa-bolt text-cfe"></i> Comisión Federal de Electricidad (CFE) &bull; SistemaCOS &copy; 2026 - Generador de Formatos de Evaluación y Capacitación</p>
+        </footer>
+    </div>
+
+    <!-- Toast Notifications -->
+    <div id="toast-container" class="toast-container"></div>
+
+    <script src="main.js"></script>
+</body>
+
+</html>

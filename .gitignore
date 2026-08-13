@@ -1,0 +1,23 @@
+# Entornos y temporales
+__pycache__/
+*.pyc
+*.pyo
+*.pyd
+temp_downloads/
+*.zip
+.vscode/
+.idea/
+
+# Carpetas de pruebas temporales
+test_output/
+test_output_31/
+test_verify_cleared/
+
+# Scripts de inspección y pruebas (no necesarios en producción)
+debug_*.py
+detail_inspect.py
+extract_profiles.py
+inspect_*.py
+test_*.py
+verify_*.py
+powershell.cmd
