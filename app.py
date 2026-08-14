@@ -478,7 +478,8 @@ def generate_batch():
         
         resp_seg = request.form.get("responsable_seguimiento", DEFAULT_OFFICIALS["responsable_seguimiento"])
         resp_enc = request.form.get("responsable_encuesta", DEFAULT_OFFICIALS["responsable_encuesta"])
-        jefe_area = request.form.get("jefe_area", DEFAULT_OFFICIALS["jefe_area"])
+        jefe_area_temp = request.form.get("jefe_area_temporal", request.form.get("jefe_area", DEFAULT_OFFICIALS["jefe_area_temporal"]))
+        jefe_area_base = request.form.get("jefe_area_base", DEFAULT_OFFICIALS["jefe_area_base"])
         rep_cap = request.form.get("representante_capacitacion", DEFAULT_OFFICIALS["representante_capacitacion"])
 
         processed_workers = 0
@@ -501,9 +502,13 @@ def generate_batch():
                 
                 profile_acts = get_profile_activities(puesto_probar, base_dir=BASE_DIR)
                 
+                is_base = "BASE" in wtype.upper() or (rpe and str(rpe).strip() and str(rpe).strip()[0].isdigit())
+                jefe_area_curr = jefe_area_base if is_base else jefe_area_temp
+
                 worker_data = {
                     "rpe": rpe,
                     "nombre": nombre,
+                    "worker_type": wtype,
                     "puesto_actual": puesto_actual,
                     "area": area,
                     "clave": clave,
@@ -512,7 +517,9 @@ def generate_batch():
                     "activities": profile_acts,
                     "responsable_seguimiento": resp_seg,
                     "responsable_encuesta": resp_enc,
-                    "jefe_area": jefe_area,
+                    "jefe_area": jefe_area_curr,
+                    "jefe_area_temporal": jefe_area_temp,
+                    "jefe_area_base": jefe_area_base,
                     "representante_capacitacion": rep_cap
                 }
                 

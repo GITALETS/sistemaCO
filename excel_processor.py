@@ -298,6 +298,8 @@ DEFAULT_ACTIVITIES = [
 DEFAULT_OFFICIALS = {
     "responsable_seguimiento": "LIC. IVONNE REZA RUGERIO",
     "responsable_encuesta": "LIC. ERYBENALY ABARCA VARGAS",
+    "jefe_area_temporal": "ING. VICENTE G. RAMOS HUERTA",
+    "jefe_area_base": "ING. MARCO ANTONIO ESTRADA AMADOR",
     "jefe_area": "ING. VICENTE G. RAMOS HUERTA",
     "representante_capacitacion": "LIC. IVONNE REZA RUGERIO"
 }
@@ -473,9 +475,18 @@ def fill_file_03_encuesta(wb, data, period_info):
         if "q6" in answers: sheet["B50"] = answers["q6"]
         if "q7" in answers: sheet["B54"] = answers["q7"]
 
+    # Determinar si el trabajador es de Base o Temporal para asignar la firma del Jefe de Área
+    worker_type = data.get("worker_type") or detect_worker_type(rpe)
+    is_base = "BASE" in str(worker_type).upper() or (rpe and rpe[0].isdigit())
+    
+    if is_base:
+        jefe_area_val = data.get("jefe_area_base") or (data.get("jefe_area") if "jefe_area" in data and data["jefe_area"] != DEFAULT_OFFICIALS["jefe_area_temporal"] else DEFAULT_OFFICIALS["jefe_area_base"])
+    else:
+        jefe_area_val = data.get("jefe_area_temporal") or data.get("jefe_area") or DEFAULT_OFFICIALS["jefe_area_temporal"]
+
     sheet["B61"] = nombre
     sheet["I61"] = data.get("responsable_encuesta", DEFAULT_OFFICIALS["responsable_encuesta"])
-    sheet["B70"] = data.get("jefe_area", DEFAULT_OFFICIALS["jefe_area"])
+    sheet["B70"] = jefe_area_val
     sheet["I70"] = data.get("representante_capacitacion", DEFAULT_OFFICIALS["representante_capacitacion"])
 
 def process_single_worker(worker_data, templates_dir, output_dir):

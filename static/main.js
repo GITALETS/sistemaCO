@@ -526,20 +526,27 @@ async function handleSingleGenerate(e) {
     btn.disabled = true;
     btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generando Paquete Excel...`;
 
-    const formData = {
-        nombre: document.getElementById("input-nombre").value.trim(),
-        rpe: rpeVal,
-        puesto_actual: document.getElementById("input-puesto-actual") ? document.getElementById("input-puesto-actual").value.trim() : "",
-        clave: document.getElementById("input-clave").value.trim(),
-        area: document.getElementById("input-area").value.trim(),
-        puesto_probar: document.getElementById("input-puesto-probar").value.trim(),
-        fecha_fisica: document.getElementById("input-fecha-fisica").value,
-        activities: currentActivities,
-        responsable_seguimiento: document.getElementById("off-seguimiento").value,
-        responsable_encuesta: document.getElementById("off-encuesta").value,
-        jefe_area: document.getElementById("off-jefe").value,
-        representante_capacitacion: document.getElementById("off-capacitacion").value
-    };
+        const isTemporal = rpeVal && isNaN(rpeVal.charAt(0));
+        const offJefeTemp = document.getElementById("off-jefe-temp") ? document.getElementById("off-jefe-temp").value : "ING. VICENTE G. RAMOS HUERTA";
+        const offJefeBase = document.getElementById("off-jefe-base") ? document.getElementById("off-jefe-base").value : "ING. MARCO ANTONIO ESTRADA AMADOR";
+        const selectedJefe = isTemporal ? offJefeTemp : offJefeBase;
+
+        const formData = {
+            nombre: document.getElementById("input-nombre").value.trim(),
+            rpe: rpeVal,
+            puesto_actual: document.getElementById("input-puesto-actual") ? document.getElementById("input-puesto-actual").value.trim() : "",
+            clave: document.getElementById("input-clave").value.trim(),
+            area: document.getElementById("input-area").value.trim(),
+            puesto_probar: document.getElementById("input-puesto-probar").value.trim(),
+            fecha_fisica: document.getElementById("input-fecha-fisica").value,
+            activities: currentActivities,
+            responsable_seguimiento: document.getElementById("off-seguimiento").value,
+            responsable_encuesta: document.getElementById("off-encuesta").value,
+            jefe_area: selectedJefe,
+            jefe_area_temporal: offJefeTemp,
+            jefe_area_base: offJefeBase,
+            representante_capacitacion: document.getElementById("off-capacitacion").value
+        };
 
     try {
         const res = await fetch("/api/generate-single", {
@@ -632,11 +639,16 @@ async function handleBatchGenerate() {
     const loader = document.getElementById("batch-loader");
     loader.classList.remove("hidden");
 
+    const offJefeTemp = document.getElementById("off-jefe-temp") ? document.getElementById("off-jefe-temp").value : "ING. VICENTE G. RAMOS HUERTA";
+    const offJefeBase = document.getElementById("off-jefe-base") ? document.getElementById("off-jefe-base").value : "ING. MARCO ANTONIO ESTRADA AMADOR";
+
     const formData = new FormData();
     formData.append("file", selectedBatchFile);
     formData.append("responsable_seguimiento", document.getElementById("off-seguimiento").value);
     formData.append("responsable_encuesta", document.getElementById("off-encuesta").value);
-    formData.append("jefe_area", document.getElementById("off-jefe").value);
+    formData.append("jefe_area_temporal", offJefeTemp);
+    formData.append("jefe_area_base", offJefeBase);
+    formData.append("jefe_area", offJefeTemp);
     formData.append("representante_capacitacion", document.getElementById("off-capacitacion").value);
 
     try {
