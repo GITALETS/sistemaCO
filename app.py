@@ -1,5 +1,7 @@
 import os
 import io
+import time
+import uuid
 import zipfile
 import shutil
 import importlib
@@ -430,12 +432,13 @@ def generate_single():
     if not data.get("nombre") or not data.get("rpe"):
         return jsonify({"error": "Nombre y RPE son obligatorios"}), 400
         
-    session_id = f"single_{int(os.times().elapsed * 1000)}"
+    session_id = f"single_{uuid.uuid4().hex}"
     work_dir = os.path.join(TEMP_DIR, session_id)
     os.makedirs(work_dir, exist_ok=True)
     
     try:
-        files = process_single_worker(data, TEMPLATES_DIR, work_dir)
+        export_format = data.get("export_format", "pdf")
+        files = process_single_worker(data, TEMPLATES_DIR, work_dir, export_format=export_format)
         
         rpe_clean = str(data.get("rpe")).strip()
         nombre_clean = str(data.get("nombre")).strip().replace(" ", "_")
@@ -463,7 +466,7 @@ def generate_batch():
     if not uploaded_file.filename:
         return jsonify({"error": "Archivo no seleccionado"}), 400
         
-    session_id = f"batch_{int(os.times().elapsed * 1000)}"
+    session_id = f"batch_{uuid.uuid4().hex}"
     work_dir = os.path.join(TEMP_DIR, session_id)
     os.makedirs(work_dir, exist_ok=True)
     
@@ -476,6 +479,7 @@ def generate_batch():
             
         df.columns = [str(c).strip().lower().replace(" ", "_") for c in df.columns]
         
+        export_format = request.form.get("export_format", "pdf")
         resp_seg = request.form.get("responsable_seguimiento", DEFAULT_OFFICIALS["responsable_seguimiento"])
         resp_enc = request.form.get("responsable_encuesta", DEFAULT_OFFICIALS["responsable_encuesta"])
         jefe_area_temp = request.form.get("jefe_area_temporal", request.form.get("jefe_area", DEFAULT_OFFICIALS["jefe_area_temporal"]))
@@ -483,7 +487,7 @@ def generate_batch():
         rep_cap = request.form.get("representante_capacitacion", DEFAULT_OFFICIALS["representante_capacitacion"])
 
         processed_workers = 0
-        zip_filename = f"Paquete_Masivo_COS_{int(os.times().elapsed)}.zip"
+        zip_filename = f"Paquete_Masivo_COS_{int(time.time())}_{uuid.uuid4().hex[:6]}.zip"
         zip_path = os.path.join(TEMP_DIR, zip_filename)
         
         with zipfile.ZipFile(zip_path, 'w', zipfile.ZIP_DEFLATED) as zipf:
@@ -515,6 +519,7 @@ def generate_batch():
                     "puesto_probar": puesto_probar,
                     "fecha_fisica": fecha_fisica,
                     "activities": profile_acts,
+                    "export_format": export_format,
                     "responsable_seguimiento": resp_seg,
                     "responsable_encuesta": resp_enc,
                     "jefe_area": jefe_area_curr,
@@ -525,7 +530,7 @@ def generate_batch():
                 
                 worker_folder_name = f"{rpe}_{nombre.replace(' ', '_')}"
                 worker_out_dir = os.path.join(work_dir, worker_folder_name)
-                files = process_single_worker(worker_data, TEMPLATES_DIR, worker_out_dir)
+                files = process_single_worker(worker_data, TEMPLATES_DIR, worker_out_dir, export_format=export_format)
                 
                 for fpath in files:
                     arcname = os.path.join(worker_folder_name, os.path.basename(fpath))

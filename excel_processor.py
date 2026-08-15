@@ -489,8 +489,78 @@ def fill_file_03_encuesta(wb, data, period_info):
     sheet["B70"] = jefe_area_val
     sheet["I70"] = data.get("representante_capacitacion", DEFAULT_OFFICIALS["representante_capacitacion"])
 
-def process_single_worker(worker_data, templates_dir, output_dir):
-    """ Procesa un trabajador individual y genera los 3 archivos Excel en output_dir. """
+def convert_excel_to_pdf(xlsx_path: str, pdf_path: str = None) -> str:
+    """ Convierte un archivo Excel (.xlsx) a PDF (.pdf) utilizando win32com o soffice como fallback. """
+    if not os.path.exists(xlsx_path):
+        return None
+        
+    if not pdf_path:
+        pdf_path = os.path.splitext(xlsx_path)[0] + ".pdf"
+        
+    abs_xlsx = os.path.abspath(xlsx_path)
+    abs_pdf = os.path.abspath(pdf_path)
+    
+    # 1. win32com (Excel COM automation)
+    try:
+        import win32com.client
+        pythoncom_obj = None
+        try:
+            import pythoncom
+            pythoncom.CoInitialize()
+            pythoncom_obj = pythoncom
+        except Exception:
+            pass
+            
+        excel = win32com.client.DispatchEx("Excel.Application")
+        excel.Visible = False
+        excel.DisplayAlerts = False
+        excel.ScreenUpdating = False
+        
+        try:
+            wb = excel.Workbooks.Open(abs_xlsx, ReadOnly=True)
+            wb.ExportAsFixedFormat(0, abs_pdf)
+            wb.Close(False)
+        finally:
+            excel.Quit()
+            if pythoncom_obj:
+                try:
+                    pythoncom_obj.CoUninitialize()
+                except Exception:
+                    pass
+        
+        if os.path.exists(abs_pdf) and os.path.getsize(abs_pdf) > 0:
+            return abs_pdf
+    except Exception as e:
+        print(f"Error al exportar a PDF vía win32com: {e}")
+        
+    # 2. LibreOffice soffice fallback
+    try:
+        import subprocess
+        out_dir = os.path.dirname(abs_pdf)
+        soffice_paths = [
+            r"C:\Program Files\LibreOffice\program\soffice.exe",
+            r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+        ]
+        cmd_path = "soffice"
+        for sp in soffice_paths:
+            if os.path.exists(sp):
+                cmd_path = sp
+                break
+                
+        cmd = [cmd_path, "--headless", "--convert-to", "pdf", abs_xlsx, "--outdir", out_dir]
+        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+        default_out = os.path.join(out_dir, os.path.splitext(os.path.basename(abs_xlsx))[0] + ".pdf")
+        if os.path.exists(default_out):
+            if default_out != abs_pdf:
+                os.replace(default_out, abs_pdf)
+            return abs_pdf
+    except Exception as e2:
+        print(f"Error al exportar a PDF vía soffice: {e2}")
+        
+    return None
+
+def process_single_worker(worker_data, templates_dir, output_dir, export_format="pdf"):
+    """ Procesa un trabajador individual y genera los 3 archivos (PDF o Excel) en output_dir. """
     os.makedirs(output_dir, exist_ok=True)
     
     physical_date = worker_data.get("fecha_fisica", "2026-08-14")
@@ -525,4 +595,23 @@ def process_single_worker(worker_data, templates_dir, output_dir):
     wb3.save(out3_path)
     wb3.close()
     
-    return [out1_path, out2_path, out3_path]
+    generated_xlsx_files = [out1_path, out2_path, out3_path]
+
+    # Convertir a PDF si el formato solicitado es 'pdf'
+    fmt_str = str(worker_data.get("export_format", export_format)).lower()
+    if fmt_str == "pdf":
+        result_files = []
+        for x_path in generated_xlsx_files:
+            pdf_path = os.path.splitext(x_path)[0] + ".pdf"
+            converted_pdf = convert_excel_to_pdf(x_path, pdf_path)
+            if converted_pdf and os.path.exists(converted_pdf) and os.path.getsize(converted_pdf) > 0:
+                result_files.append(converted_pdf)
+                try:
+                    os.remove(x_path)
+                except Exception:
+                    pass
+            else:
+                result_files.append(x_path)
+        return result_files
+
+    return generated_xlsx_files
