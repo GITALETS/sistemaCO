@@ -500,60 +500,70 @@ def convert_excel_to_pdf(xlsx_path: str, pdf_path: str = None) -> str:
     abs_xlsx = os.path.abspath(xlsx_path)
     abs_pdf = os.path.abspath(pdf_path)
     
-    # 1. win32com (Excel COM automation)
-    try:
-        import win32com.client
-        pythoncom_obj = None
+    # 1. win32com (Excel COM automation - solo en Windows)
+    if os.name == 'nt':
         try:
-            import pythoncom
-            pythoncom.CoInitialize()
-            pythoncom_obj = pythoncom
-        except Exception:
-            pass
+            import win32com.client
+            pythoncom_obj = None
+            try:
+                import pythoncom
+                pythoncom.CoInitialize()
+                pythoncom_obj = pythoncom
+            except Exception:
+                pass
+                
+            excel = win32com.client.DispatchEx("Excel.Application")
+            excel.Visible = False
+            excel.DisplayAlerts = False
+            excel.ScreenUpdating = False
             
-        excel = win32com.client.DispatchEx("Excel.Application")
-        excel.Visible = False
-        excel.DisplayAlerts = False
-        excel.ScreenUpdating = False
-        
-        try:
-            wb = excel.Workbooks.Open(abs_xlsx, ReadOnly=True)
-            wb.ExportAsFixedFormat(0, abs_pdf)
-            wb.Close(False)
-        finally:
-            excel.Quit()
-            if pythoncom_obj:
-                try:
-                    pythoncom_obj.CoUninitialize()
-                except Exception:
-                    pass
-        
-        if os.path.exists(abs_pdf) and os.path.getsize(abs_pdf) > 0:
-            return abs_pdf
-    except Exception as e:
-        print(f"Error al exportar a PDF vía win32com: {e}")
-        
-    # 2. LibreOffice soffice fallback
+            try:
+                wb = excel.Workbooks.Open(abs_xlsx, ReadOnly=True)
+                wb.ExportAsFixedFormat(0, abs_pdf)
+                wb.Close(False)
+            finally:
+                excel.Quit()
+                if pythoncom_obj:
+                    try:
+                        pythoncom_obj.CoUninitialize()
+                    except Exception:
+                        pass
+            
+            if os.path.exists(abs_pdf) and os.path.getsize(abs_pdf) > 0:
+                return abs_pdf
+        except Exception as e:
+            print(f"Error al exportar a PDF vía win32com: {e}")
+            
+    # 2. LibreOffice soffice fallback (Linux / Windows / Mac)
     try:
         import subprocess
+        import shutil
         out_dir = os.path.dirname(abs_pdf)
         soffice_paths = [
             r"C:\Program Files\LibreOffice\program\soffice.exe",
-            r"C:\Program Files (x86)\LibreOffice\program\soffice.exe"
+            r"C:\Program Files (x86)\LibreOffice\program\soffice.exe",
+            "/usr/bin/soffice",
+            "/usr/bin/libreoffice",
+            "/usr/local/bin/soffice",
+            "/usr/local/bin/libreoffice"
         ]
-        cmd_path = "soffice"
+        cmd_path = None
         for sp in soffice_paths:
             if os.path.exists(sp):
                 cmd_path = sp
                 break
                 
-        cmd = [cmd_path, "--headless", "--convert-to", "pdf", abs_xlsx, "--outdir", out_dir]
-        subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
-        default_out = os.path.join(out_dir, os.path.splitext(os.path.basename(abs_xlsx))[0] + ".pdf")
-        if os.path.exists(default_out):
-            if default_out != abs_pdf:
-                os.replace(default_out, abs_pdf)
-            return abs_pdf
+        if not cmd_path:
+            cmd_path = shutil.which("soffice") or shutil.which("libreoffice")
+            
+        if cmd_path:
+            cmd = [cmd_path, "--headless", "--convert-to", "pdf", abs_xlsx, "--outdir", out_dir]
+            subprocess.run(cmd, stdout=subprocess.PIPE, stderr=subprocess.PIPE, check=True)
+            default_out = os.path.join(out_dir, os.path.splitext(os.path.basename(abs_xlsx))[0] + ".pdf")
+            if os.path.exists(default_out):
+                if default_out != abs_pdf:
+                    os.replace(default_out, abs_pdf)
+                return abs_pdf
     except Exception as e2:
         print(f"Error al exportar a PDF vía soffice: {e2}")
         
