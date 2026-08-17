@@ -157,14 +157,6 @@
                                     <small class="help-text"><i class="fa-solid fa-circle-info"></i> Se calculará automáticamente el mes hábil anterior para la matriz Gantt.</small>
                                 </div>
 
-                                <div class="form-group col-span-2">
-                                    <label for="select-export-format-single"><i class="fa-solid fa-file-zipper text-cfe"></i> Tipo de Descarga del Paquete .ZIP</label>
-                                    <select id="select-export-format-single" name="export_format" class="form-control" onchange="handleFormatChange('single')">
-                                        <option value="xlsx" selected>Archivos Excel (.xlsx) - [Predeterminado]</option>
-                                        <option value="pdf">Documentos PDF (.pdf)</option>
-                                    </select>
-                                    <small id="help-text-format-single" class="help-text"><i class="fa-solid fa-circle-info text-cfe"></i> Descarga instantánea de los 3 formatos generados en formato Excel (.xlsx).</small>
-                                </div>
                             </div>
 
                             <!-- Gantt Activities Section -->
@@ -285,14 +277,6 @@
                                 class="fa-solid fa-xmark"></i> Quitar</button>
                     </div>
 
-                    <div class="form-group margin-top-md">
-                        <label for="select-export-format-batch"><i class="fa-solid fa-file-zipper text-cfe"></i> Tipo de Descarga del Paquete .ZIP</label>
-                        <select id="select-export-format-batch" name="export_format" class="form-control" onchange="handleFormatChange('batch')">
-                            <option value="xlsx" selected>Archivos Excel (.xlsx) - [Predeterminado]</option>
-                            <option value="pdf">Documentos PDF (.pdf)</option>
-                        </select>
-                        <small id="help-text-format-batch" class="help-text"><i class="fa-solid fa-circle-info text-cfe"></i> Descarga instantánea de los formatos generados en formato Excel (.xlsx).</small>
-                    </div>
 
                     <div class="form-actions margin-top-lg">
                         <button type="button" id="btn-process-batch" class="btn-primary btn-glow btn-lg"

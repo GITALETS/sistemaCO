@@ -522,12 +522,10 @@ async function handleSingleGenerate(e) {
         return;
     }
 
-    const exportFormatVal = document.getElementById("select-export-format-single") ? document.getElementById("select-export-format-single").value : "xlsx";
-    const isPdf = exportFormatVal === "pdf";
-
+    const exportFormatVal = "xlsx";
     const btn = document.getElementById("btn-submit-single");
     btn.disabled = true;
-    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generando Paquete${isPdf ? ' (conversión a PDF, puede demorar 1 a 3 min)' : ''}...`;
+    btn.innerHTML = `<i class="fa-solid fa-spinner fa-spin"></i> Generando Paquete (.ZIP)...`;
 
     const isTemporal = rpeVal && isNaN(rpeVal.charAt(0));
     const offJefeTemp = document.getElementById("off-jefe-temp") ? document.getElementById("off-jefe-temp").value : "ING. VICENTE G. RAMOS HUERTA";
@@ -646,14 +644,10 @@ async function handleBatchGenerate() {
     const offJefeTemp = document.getElementById("off-jefe-temp") ? document.getElementById("off-jefe-temp").value : "ING. VICENTE G. RAMOS HUERTA";
     const offJefeBase = document.getElementById("off-jefe-base") ? document.getElementById("off-jefe-base").value : "ING. MARCO ANTONIO ESTRADA AMADOR";
 
-    const exportFormatBatchVal = document.getElementById("select-export-format-batch") ? document.getElementById("select-export-format-batch").value : "xlsx";
-    const isPdfBatch = exportFormatBatchVal === "pdf";
-
+    const exportFormatBatchVal = "xlsx";
     const loaderSub = document.getElementById("loader-subtitle");
     if (loaderSub) {
-        loaderSub.innerText = isPdfBatch 
-            ? "Generando y convirtiendo formatos a PDF (puede demorar entre 1 a 3 minutos)..."
-            : "Vinculando perfiles de puesto y actividades de Gantt por cada trabajador.";
+        loaderSub.innerText = "Vinculando perfiles de puesto y actividades de Gantt por cada trabajador.";
     }
 
     const formData = new FormData();
@@ -712,14 +706,4 @@ function showToast(message, type = "success") {
     }, 4000);
 }
 
-function handleFormatChange(type) {
-    const select = document.getElementById(`select-export-format-${type}`);
-    const helpText = document.getElementById(`help-text-format-${type}`);
-    if (!select || !helpText) return;
-
-    if (select.value === 'pdf') {
-        helpText.innerHTML = `<i class="fa-solid fa-clock text-amber"></i> La conversión a formato PDF puede llegar a demorar de 1 a 3 minutos aproximadamente.`;
-    } else {
-        helpText.innerHTML = `<i class="fa-solid fa-circle-info text-cfe"></i> Descarga instantánea de los formatos generados en formato Excel (.xlsx).`;
-    }
 }

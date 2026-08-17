@@ -1,8 +1,9 @@
 services:
   - type: web
     name: sistemaCO
-    env: docker
-    dockerfilePath: ./Dockerfile
+    env: python
+    buildCommand: "./build.sh"
+    startCommand: "gunicorn app:app"
     envVars:
-      - key: PORT
-        value: 10000
+      - key: PYTHON_VERSION
+        value: 3.11.9
