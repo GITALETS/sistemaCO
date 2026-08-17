@@ -566,7 +566,7 @@ function renderMiniScores(animate = false) {
 
     const totalEl = document.getElementById("prev-total-puntos");
     if (totalEl) {
-        totalEl.innerText = `${currentPreviewScores.total} / 100`;
+        totalEl.innerText = currentPreviewScores.total;
     }
 }
 
