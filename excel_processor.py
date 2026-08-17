@@ -551,7 +551,9 @@ def convert_excel_to_pdf(xlsx_path: str, pdf_path: str = None) -> str:
             "/usr/bin/soffice",
             "/usr/bin/libreoffice",
             "/usr/local/bin/soffice",
-            "/usr/local/bin/libreoffice"
+            "/usr/local/bin/libreoffice",
+            os.path.join(os.getcwd(), "libreoffice_dist", "usr", "bin", "soffice"),
+            os.path.join(os.getcwd(), "libreoffice_dist", "usr", "lib", "libreoffice", "program", "soffice")
         ]
         cmd_path = None
         for sp in soffice_paths:
