@@ -705,5 +705,3 @@ function showToast(message, type = "success") {
         toast.remove();
     }, 4000);
 }
-
-}
