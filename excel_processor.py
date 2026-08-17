@@ -220,14 +220,36 @@ def calculate_target_month_from_physical_date(physical_date_str: str):
     return period_info
 
 def generate_random_scores(min_total=80, max_total=100):
-    """ Genera 10 calificaciones (5 Aptitudes, 5 Actitudes) tal que la suma total esté entre 80 y 100 """
-    scores_pool = [10, 8, 6]
-    while True:
-        aptitudes = [random.choice(scores_pool) for _ in range(5)]
-        actitudes = [random.choice(scores_pool) for _ in range(5)]
-        total = sum(aptitudes) + sum(actitudes)
-        if min_total <= total <= max_total:
-            return aptitudes, actitudes, sum(aptitudes), sum(actitudes), total
+    """
+    Genera 10 calificaciones (5 Aptitudes, 5 Actitudes) con valores en {6, 8, 10}
+    distribuidas equitativamente en todo el rango [min_total, max_total] (80 a 100),
+    garantizando una presencia uniforme de puntuaciones en el rango 90-100.
+    """
+    possible_totals = [t for t in range(min_total, max_total + 1) if t % 2 == 0]
+    target_total = random.choice(possible_totals)
+    
+    k = (target_total - 60) // 2
+    increments = [0] * 10
+    
+    while k > 0:
+        valid_indices = [i for i in range(10) if increments[i] < 2]
+        if not valid_indices:
+            break
+        idx = random.choice(valid_indices)
+        increments[idx] += 1
+        k -= 1
+        
+    scores = [6 + 2 * inc for inc in increments]
+    random.shuffle(scores)
+    
+    aptitudes = scores[:5]
+    actitudes = scores[5:]
+    sum_aptitudes = sum(aptitudes)
+    sum_actitudes = sum(actitudes)
+    total = sum_aptitudes + sum_actitudes
+    
+    return aptitudes, actitudes, sum_aptitudes, sum_actitudes, total
+
 
 def distribute_activities(activities_list, working_days):
     """

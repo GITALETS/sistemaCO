@@ -758,39 +758,188 @@ body {
     color: var(--cfe-green);
 }
 
-.preview-details h3 {
+/* Premium Summary Section Styling */
+.preview-summary-card {
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-md);
+    padding: 16px;
+    box-shadow: 0 2px 10px rgba(0, 0, 0, 0.03);
+    margin-bottom: 16px;
+}
+
+.summary-card-header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    padding-bottom: 12px;
+    margin-bottom: 14px;
+    border-bottom: 1px solid #f1f5f9;
+    flex-wrap: wrap;
+    gap: 8px;
+}
+
+.summary-card-title {
     font-size: 13.5px;
     font-weight: 700;
     color: var(--text-primary);
-    margin-bottom: 12px;
+    display: flex;
+    align-items: center;
+    gap: 7px;
+}
+
+.summary-formats-badges {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+}
+
+.format-badge {
+    background: #f0fdf4;
+    color: var(--cfe-green);
+    border: 1px solid var(--cfe-green-border);
+    padding: 3px 8px;
+    border-radius: 6px;
+    font-size: 11.5px;
+    font-weight: 700;
+    font-family: monospace;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+}
+
+.summary-grid-2x2 {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 10px;
+    margin-bottom: 14px;
+}
+
+@media (max-width: 520px) {
+    .summary-grid-2x2 {
+        grid-template-columns: 1fr;
+    }
+}
+
+.summary-item {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 10px 12px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    transition: var(--transition-fast);
+}
+
+.summary-item:hover {
+    border-color: #cbd5e1;
+    background: #ffffff;
+    box-shadow: 0 2px 8px rgba(0, 0, 0, 0.04);
+}
+
+.summary-item-icon {
+    width: 34px;
+    height: 34px;
+    border-radius: 8px;
+    background: #ffffff;
+    border: 1px solid #e2e8f0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-size: 15px;
+    flex-shrink: 0;
+}
+
+.summary-item-body {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.summary-label {
+    font-size: 11px;
+    font-weight: 600;
+    color: var(--text-muted);
+    text-transform: uppercase;
+    letter-spacing: 0.3px;
+}
+
+.summary-val {
+    font-size: 13px;
+    font-weight: 700;
+    color: var(--text-primary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+.score-card-highlight {
+    background: #f0fdf4;
+    border-color: var(--cfe-green-border);
+}
+
+.score-val-wrapper {
     display: flex;
     align-items: center;
     gap: 8px;
 }
 
-.preview-list {
-    list-style: none;
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    font-size: 13px;
-    color: var(--text-secondary);
+.summary-val.score-big {
+    font-size: 14px;
+    color: var(--cfe-green);
+    font-weight: 800;
 }
 
-.preview-list li {
+.score-tag-min {
+    background: #dcfce7;
+    color: var(--cfe-green);
+    border: 1px solid #86efac;
+    padding: 1px 6px;
+    border-radius: 10px;
+    font-size: 11px;
+    font-weight: 700;
+    display: inline-flex;
+    align-items: center;
+    gap: 4px;
+}
+
+.summary-formulas-strip {
+    background: #f8fafc;
+    border: 1px solid #e2e8f0;
+    border-radius: var(--radius-sm);
+    padding: 8px 12px;
     display: flex;
-    align-items: flex-start;
+    justify-content: space-between;
+    align-items: center;
+    flex-wrap: wrap;
     gap: 8px;
-    line-height: 1.4;
+    font-size: 12px;
 }
 
-.preview-list code {
-    background: #f1f5f9;
-    padding: 2px 6px;
+.formula-label {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    color: var(--text-secondary);
+    font-weight: 600;
+}
+
+.formula-badges {
+    display: flex;
+    gap: 6px;
+}
+
+.formula-badges code {
+    background: #ffffff;
+    border: 1px solid #cbd5e1;
+    color: var(--cfe-green);
+    padding: 2px 7px;
     border-radius: 4px;
     font-family: monospace;
-    font-size: 12px;
-    color: var(--cfe-green);
+    font-size: 11.5px;
+    font-weight: 600;
 }
 
 .preview-mini-table-title {

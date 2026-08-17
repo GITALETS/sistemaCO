@@ -490,23 +490,46 @@ async function updatePreview() {
     }
 }
 
-function generateClientRandomScores() {
-    const pool = [10, 8, 6];
-    let apt, act, total;
-    while (true) {
-        apt = Array.from({ length: 5 }, () => pool[Math.floor(Math.random() * pool.length)]);
-        act = Array.from({ length: 5 }, () => pool[Math.floor(Math.random() * pool.length)]);
-        total = apt.reduce((a, b) => a + b, 0) + act.reduce((a, b) => a + b, 0);
-        if (total >= 80 && total <= 100) {
-            return {
-                aptitudes: apt,
-                actitudes: act,
-                sum_aptitudes: apt.reduce((a, b) => a + b, 0),
-                sum_actitudes: act.reduce((a, b) => a + b, 0),
-                total: total
-            };
-        }
+function generateClientRandomScores(minTotal = 80, maxTotal = 100) {
+    const possibleTotals = [];
+    for (let t = minTotal; t <= maxTotal; t += 2) {
+        possibleTotals.push(t);
     }
+    const targetTotal = possibleTotals[Math.floor(Math.random() * possibleTotals.length)];
+    
+    let k = Math.floor((targetTotal - 60) / 2);
+    const increments = new Array(10).fill(0);
+    
+    while (k > 0) {
+        const validIndices = [];
+        for (let i = 0; i < 10; i++) {
+            if (increments[i] < 2) validIndices.push(i);
+        }
+        if (validIndices.length === 0) break;
+        const idx = validIndices[Math.floor(Math.random() * validIndices.length)];
+        increments[idx]++;
+        k--;
+    }
+    
+    const scores = increments.map(inc => 6 + 2 * inc);
+    for (let i = scores.length - 1; i > 0; i--) {
+        const j = Math.floor(Math.random() * (i + 1));
+        [scores[i], scores[j]] = [scores[j], scores[i]];
+    }
+    
+    const apt = scores.slice(0, 5);
+    const act = scores.slice(5, 10);
+    const sumApt = apt.reduce((a, b) => a + b, 0);
+    const sumAct = act.reduce((a, b) => a + b, 0);
+    const total = sumApt + sumAct;
+    
+    return {
+        aptitudes: apt,
+        actitudes: act,
+        sum_aptitudes: sumApt,
+        sum_actitudes: sumAct,
+        total: total
+    };
 }
 
 function regenerateScoresPreview() {
@@ -543,7 +566,7 @@ function renderMiniScores(animate = false) {
 
     const totalEl = document.getElementById("prev-total-puntos");
     if (totalEl) {
-        totalEl.innerText = `${currentPreviewScores.total} / 100 (≥ 80)`;
+        totalEl.innerText = `${currentPreviewScores.total} / 100`;
     }
 }
 

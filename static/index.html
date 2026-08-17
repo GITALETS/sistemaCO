@@ -198,33 +198,74 @@
                         </div>
 
                         <div class="preview-details">
-                            <h3><i class="fa-solid fa-file-contract text-cfe"></i> Resumen de Vinculación en Formatos</h3>
-                            <ul class="preview-list">
-                                <li>
-                                    <i class="fa-solid fa-circle-check text-green"></i>
-                                    <strong>Formatos Vinculados:</strong> <code>CO-03-01</code>, <code>CO-03-02</code> y <code>CO-03-03</code>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check text-green"></i>
-                                    <strong>Tipo Trabajador:</strong> <span id="prev-worker-type-text">TEMPORAL SINDICALIZADO (RTT)</span>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check text-green"></i>
-                                    <strong>Puesto Base/Actual:</strong> <strong id="prev-puesto-actual-text" class="text-gold">TEMPORAL SINDICALIZADO</strong>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check text-green"></i>
-                                    <strong>Perfil Evaluado:</strong> <strong id="prev-profile-matched" class="text-cyan">AYUDANTE LINIERO</strong>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check text-green"></i>
-                                    <strong>Puntuación Simulada:</strong> Suma Ponderada = <strong id="prev-total-puntos" class="text-gold">92 / 100 (&ge; 80)</strong>
-                                </li>
-                                <li>
-                                    <i class="fa-solid fa-circle-check text-green"></i>
-                                    <strong>Fórmulas de Excel:</strong> <code>=SUM(H19:H23)</code> y <code>=SUM(H30:H34)</code> Preservadas Intactas
-                                </li>
-                            </ul>
+                            <div class="preview-summary-card">
+                                <div class="summary-card-header">
+                                    <span class="summary-card-title">
+                                        <i class="fa-solid fa-file-shield text-cfe"></i> Formatos Vinculados en ZIP
+                                    </span>
+                                    <div class="summary-formats-badges">
+                                        <span class="format-badge"><i class="fa-solid fa-file-excel"></i> CO-03-01</span>
+                                        <span class="format-badge"><i class="fa-solid fa-file-excel"></i> CO-03-02</span>
+                                        <span class="format-badge"><i class="fa-solid fa-file-excel"></i> CO-03-03</span>
+                                    </div>
+                                </div>
+
+                                <div class="summary-grid-2x2">
+                                    <div class="summary-item">
+                                        <div class="summary-item-icon text-cfe">
+                                            <i class="fa-solid fa-user-gear"></i>
+                                        </div>
+                                        <div class="summary-item-body">
+                                            <span class="summary-label">Tipo de Trabajador</span>
+                                            <strong class="summary-val" id="prev-worker-type-text">TEMPORAL SINDICALIZADO (RTT)</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="summary-item">
+                                        <div class="summary-item-icon text-gold">
+                                            <i class="fa-solid fa-briefcase"></i>
+                                        </div>
+                                        <div class="summary-item-body">
+                                            <span class="summary-label">Puesto Titular / Base</span>
+                                            <strong class="summary-val text-gold" id="prev-puesto-actual-text">TEMPORAL SINDICALIZADO</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="summary-item">
+                                        <div class="summary-item-icon text-cyan">
+                                            <i class="fa-solid fa-layer-group"></i>
+                                        </div>
+                                        <div class="summary-item-body">
+                                            <span class="summary-label">Perfil Evaluado</span>
+                                            <strong class="summary-val text-cyan" id="prev-profile-matched">AYUDANTE LINIERO</strong>
+                                        </div>
+                                    </div>
+
+                                    <div class="summary-item score-card-highlight">
+                                        <div class="summary-item-icon text-green">
+                                            <i class="fa-solid fa-award"></i>
+                                        </div>
+                                        <div class="summary-item-body">
+                                            <span class="summary-label">Puntuación Simulada</span>
+                                            <div class="score-val-wrapper">
+                                                <strong class="summary-val score-big" id="prev-total-puntos">92 / 100</strong>
+                                                <span class="score-tag-min" title="Requisito aprobatorio mínimo: 80 puntos"><i class="fa-solid fa-circle-check"></i> &ge; 80</span>
+                                            </div>
+                                        </div>
+                                    </div>
+                                </div>
+
+                                <div class="summary-formulas-strip">
+                                    <div class="formula-label">
+                                        <i class="fa-solid fa-square-check text-green"></i>
+                                        <span>Fórmulas Excel Preservadas:</span>
+                                    </div>
+                                    <div class="formula-badges">
+                                        <code>=SUM(H19:H23)</code>
+                                        <code>=SUM(H30:H34)</code>
+                                    </div>
+                                </div>
+                            </div>
 
                             <div class="preview-mini-table-title">
                                 <span><i class="fa-solid fa-star-half-stroke text-cfe"></i> Simulación de Calificaciones</span>
