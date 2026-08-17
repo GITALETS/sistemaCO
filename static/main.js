@@ -16,9 +16,13 @@ let selectedBatchFile = null;
 let currentPreviewScores = null;
 
 document.addEventListener("DOMContentLoaded", async () => {
+    if (!currentPreviewScores) {
+        currentPreviewScores = generateClientRandomScores();
+    }
     await fetchWorkersDbInfo();
     await fetchProfiles();
     renderActivities();
+    renderMiniScores();
     validateAndAdjustDateInput();
     handleRpeInput();
     setupDropzone();
@@ -151,14 +155,12 @@ function populateProfileSelect() {
 async function handleProfileSelectChange(puestoValue) {
     if (!puestoValue) return;
 
-    currentPreviewScores = null;
     document.getElementById("input-puesto-probar").value = puestoValue;
     await loadActivitiesForPuesto(puestoValue);
 }
 
 async function handlePuestoInputChange(puestoValue) {
     if (!puestoValue) return;
-    currentPreviewScores = null;
     await loadActivitiesForPuesto(puestoValue);
 }
 
@@ -294,8 +296,6 @@ function renderWorkerSearchResults(workers) {
 
 function selectWorker(w) {
     if (!w) return;
-    
-    currentPreviewScores = null;
 
     document.getElementById("input-nombre").value = w.nombre || "";
     document.getElementById("input-rpe").value = w.rpe || "";
@@ -490,22 +490,45 @@ async function updatePreview() {
     }
 }
 
+function generateClientRandomScores() {
+    const pool = [10, 8, 6];
+    let apt, act, total;
+    while (true) {
+        apt = Array.from({ length: 5 }, () => pool[Math.floor(Math.random() * pool.length)]);
+        act = Array.from({ length: 5 }, () => pool[Math.floor(Math.random() * pool.length)]);
+        total = apt.reduce((a, b) => a + b, 0) + act.reduce((a, b) => a + b, 0);
+        if (total >= 80 && total <= 100) {
+            return {
+                aptitudes: apt,
+                actitudes: act,
+                sum_aptitudes: apt.reduce((a, b) => a + b, 0),
+                sum_actitudes: act.reduce((a, b) => a + b, 0),
+                total: total
+            };
+        }
+    }
+}
+
 function regenerateScoresPreview() {
     const btn = document.getElementById("btn-regenerate-scores");
     if (btn) {
         const icon = btn.querySelector("i");
         if (icon) {
             icon.classList.add("fa-spin");
-            setTimeout(() => icon.classList.remove("fa-spin"), 500);
+            setTimeout(() => icon.classList.remove("fa-spin"), 400);
         }
     }
-    currentPreviewScores = null;
-    updatePreview(true);
+    currentPreviewScores = generateClientRandomScores();
+    renderMiniScores(true);
+    showToast("Calificaciones simuladas regeneradas (Suma Total ≥ 80)", "success");
 }
 
 function renderMiniScores(animate = false) {
-    if (!currentPreviewScores) return;
+    if (!currentPreviewScores) {
+        currentPreviewScores = generateClientRandomScores();
+    }
     const container = document.getElementById("mini-scores-container");
+    if (!container) return;
     container.innerHTML = "";
 
     const labels = ["Conoc.", "Destr.", "Conf.", "Razon.", "Obs.", "Aplic.", "Trato", "Discip.", "Segur.", "Orden"];
@@ -518,7 +541,10 @@ function renderMiniScores(animate = false) {
         container.appendChild(box);
     });
 
-    document.getElementById("prev-total-puntos").innerText = `${currentPreviewScores.total} / 100 (≥ 80)`;
+    const totalEl = document.getElementById("prev-total-puntos");
+    if (totalEl) {
+        totalEl.innerText = `${currentPreviewScores.total} / 100 (≥ 80)`;
+    }
 }
 
 // Handle Single Worker Generation
@@ -708,18 +734,8 @@ function showToast(message, type = "success") {
     const container = document.getElementById("toast-container");
     if (!container) return;
 
-    // Prevenir spam/duplicados del mismo mensaje: remover el anterior si existe
-    const existingToasts = container.querySelectorAll(".toast");
-    existingToasts.forEach(t => {
-        if (t.innerText.trim().includes(message.trim())) {
-            t.remove();
-        }
-    });
-
-    // Limitar estrictamente a máximo 2 toasts simultáneos en pantalla para evitar fatiga visual
-    while (container.children.length >= 2) {
-        container.removeChild(container.firstChild);
-    }
+    // Limpiar notificaciones previas de inmediato para evitar amontonamiento / fatiga visual
+    container.innerHTML = "";
 
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
@@ -731,5 +747,5 @@ function showToast(message, type = "success") {
         if (toast.parentNode) {
             toast.remove();
         }
-    }, 3500);
+    }, 3000);
 }
