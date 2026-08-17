@@ -11,7 +11,7 @@
         href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700;800&family=Outfit:wght@500;600;700;800&display=swap"
         rel="stylesheet">
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="styles.css?v=2.2">
+    <link rel="stylesheet" href="styles.css?v=2.3">
 </head>
 
 <body>
@@ -135,18 +135,18 @@
                                     </select>
                                 </div>
 
-                                <div class="form-group">
-                                    <label for="input-area"><i class="fa-solid fa-building"></i> Zona / Área de Trabajo</label>
-                                    <input type="text" id="input-area" name="area" value="ZONA TOLUCA" required
-                                        placeholder="Ej. ZONA TOLUCA">
-                                </div>
-
-                                <div class="form-group">
+                                <div class="form-group col-span-2">
                                     <label for="input-puesto-probar"><i class="fa-solid fa-user-gear"></i> Puesto a Probar / Evaluado</label>
                                     <input type="text" id="input-puesto-probar" name="puesto_probar"
                                         value="AYUDANTE LINIERO (SERVICIO AL CLIENTE)" required
                                         placeholder="Ej. AYUDANTE LINIERO"
                                         onchange="handlePuestoInputChange(this.value)">
+                                </div>
+
+                                <div class="form-group col-span-2">
+                                    <label for="input-area"><i class="fa-solid fa-building"></i> Zona / Área de Trabajo</label>
+                                    <input type="text" id="input-area" name="area" value="ZONA TOLUCA" required
+                                        placeholder="Ej. ZONA TOLUCA">
                                 </div>
 
                                 <div class="form-group col-span-2">
@@ -410,7 +410,7 @@
     <!-- Toast Notifications -->
     <div id="toast-container" class="toast-container"></div>
 
-    <script src="main.js?v=2.2"></script>
+    <script src="main.js?v=2.3"></script>
 </body>
 
 </html>
