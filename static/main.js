@@ -151,12 +151,14 @@ function populateProfileSelect() {
 async function handleProfileSelectChange(puestoValue) {
     if (!puestoValue) return;
 
+    currentPreviewScores = null;
     document.getElementById("input-puesto-probar").value = puestoValue;
     await loadActivitiesForPuesto(puestoValue);
 }
 
 async function handlePuestoInputChange(puestoValue) {
     if (!puestoValue) return;
+    currentPreviewScores = null;
     await loadActivitiesForPuesto(puestoValue);
 }
 
@@ -293,6 +295,8 @@ function renderWorkerSearchResults(workers) {
 function selectWorker(w) {
     if (!w) return;
     
+    currentPreviewScores = null;
+
     document.getElementById("input-nombre").value = w.nombre || "";
     document.getElementById("input-rpe").value = w.rpe || "";
     document.getElementById("input-clave").value = w.clave || "623X5";
@@ -479,7 +483,7 @@ async function updatePreview() {
             if (!currentPreviewScores) {
                 currentPreviewScores = data.sample_scores;
             }
-            renderMiniScores();
+            renderMiniScores(animate);
         }
     } catch (err) {
         console.error("Preview fetch error:", err);
@@ -487,12 +491,19 @@ async function updatePreview() {
 }
 
 function regenerateScoresPreview() {
+    const btn = document.getElementById("btn-regenerate-scores");
+    if (btn) {
+        const icon = btn.querySelector("i");
+        if (icon) {
+            icon.classList.add("fa-spin");
+            setTimeout(() => icon.classList.remove("fa-spin"), 500);
+        }
+    }
     currentPreviewScores = null;
-    updatePreview();
-    showToast("Calificaciones simuladas regeneradas (Suma Total ≥ 80)", "success");
+    updatePreview(true);
 }
 
-function renderMiniScores() {
+function renderMiniScores(animate = false) {
     if (!currentPreviewScores) return;
     const container = document.getElementById("mini-scores-container");
     container.innerHTML = "";
@@ -502,7 +513,7 @@ function renderMiniScores() {
 
     allScores.forEach((s, i) => {
         const box = document.createElement("div");
-        box.className = "mini-score-box";
+        box.className = animate ? "mini-score-box score-pop" : "mini-score-box";
         box.innerHTML = `<span>${labels[i]}</span><strong>${s}</strong>`;
         container.appendChild(box);
     });
@@ -695,6 +706,21 @@ function saveOfficials(e) {
 
 function showToast(message, type = "success") {
     const container = document.getElementById("toast-container");
+    if (!container) return;
+
+    // Prevenir spam/duplicados del mismo mensaje: remover el anterior si existe
+    const existingToasts = container.querySelectorAll(".toast");
+    existingToasts.forEach(t => {
+        if (t.innerText.trim().includes(message.trim())) {
+            t.remove();
+        }
+    });
+
+    // Limitar estrictamente a máximo 2 toasts simultáneos en pantalla para evitar fatiga visual
+    while (container.children.length >= 2) {
+        container.removeChild(container.firstChild);
+    }
+
     const toast = document.createElement("div");
     toast.className = `toast ${type}`;
     const icon = type === "success" ? "fa-circle-check text-green" : "fa-circle-exclamation text-red";
@@ -702,6 +728,8 @@ function showToast(message, type = "success") {
     container.appendChild(toast);
 
     setTimeout(() => {
-        toast.remove();
-    }, 4000);
+        if (toast.parentNode) {
+            toast.remove();
+        }
+    }, 3500);
 }
