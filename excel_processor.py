@@ -59,7 +59,7 @@ def load_job_profiles(base_dir=".") -> dict:
     if not os.path.exists(base_dir):
         return profiles
 
-    files = [f for f in os.listdir(base_dir) if f.startswith("CO-03-01") and f.endswith(".xlsx")]
+    files = [f for f in os.listdir(base_dir) if f.startswith("CO-03-01") and f.endswith(".xlsx") and not f.startswith("~$")]
     
     for f in sorted(files):
         fpath = os.path.join(base_dir, f)
@@ -70,9 +70,15 @@ def load_job_profiles(base_dir=".") -> dict:
             puesto_celda = sheet["C10"].value
             puesto_name = clean_text_encoding(puesto_celda) if puesto_celda else ""
             
-            if not puesto_name or puesto_name.upper() in ["TEMPORAL SINDICALIZADO", "BASE SINDICALIZADO"]:
-                clean_fname = f.replace("CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA", "").replace(".xlsx", "").strip()
-                puesto_name = clean_text_encoding(clean_fname) if clean_fname else "AYUDANTE LINIERO (SERVICIO AL CLIENTE)"
+            clean_fname = f.replace("CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA", "").replace(".xlsx", "").strip()
+            clean_fname = clean_text_encoding(clean_fname)
+
+            if f != "CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA.xlsx" and clean_fname:
+                # Si el archivo tiene un nombre específico de puesto, priorizarlo o usarlo si C10 conserva el valor plantilla
+                if not puesto_name or puesto_name.upper() in ["TEMPORAL SINDICALIZADO", "BASE SINDICALIZADO", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)"]:
+                    puesto_name = clean_fname
+            elif not puesto_name or puesto_name.upper() in ["TEMPORAL SINDICALIZADO", "BASE SINDICALIZADO"]:
+                puesto_name = clean_fname if clean_fname else "AYUDANTE LINIERO (SERVICIO AL CLIENTE)"
 
             act_rows = [17, 19, 21, 23, 25, 27, 29, 31, 33, 35]
             activities = []

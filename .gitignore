@@ -22,3 +22,4 @@ inspect_*.py
 test_*.py
 verify_*.py
 powershell.cmd
+~$*
