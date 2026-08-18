@@ -26,7 +26,11 @@ GRID_BORDER = Border(left=THIN_SIDE, right=THIN_SIDE, top=THIN_SIDE, bottom=THIN
 GLOBAL_PROFILES = {}
 
 def clean_text_encoding(text: str) -> str:
-    """ Corrige caracteres corruptos por codificación de archivo (remueve \x00 y arregla acentos) """
+    """ 
+    Corrige caracteres corruptos por codificación de archivo y aplica sanitización de seguridad:
+    Validación #15 (Escapar contenido de usuario / Inyección de fórmulas Excel):
+    Si un texto inicia con =, +, -, @, \t, \r, se le antepone "'" para evitar ejecución en Excel.
+    """
     if not text:
         return ""
     clean_chars = [c for c in str(text) if (32 <= ord(c) <= 126) or (192 <= ord(c) <= 255) or c in "ÁÉÍÓÚñÑáéíóú"]
@@ -49,7 +53,11 @@ def clean_text_encoding(text: str) -> str:
     }
     for old, new in replacements.items():
         s = s.replace(old, new)
-    return s.strip()
+    s = s.strip()
+    # Prevención contra Inyección de Fórmulas en Excel (Formula Injection)
+    if s and s[0] in ['=', '+', '-', '@', '\t', '\r']:
+        s = "'" + s
+    return s
 
 def load_job_profiles(base_dir=".") -> dict:
     """ Escanea y carga dinámicamente todos los archivos de perfil CO-03-01 *.xlsx en el directorio base """

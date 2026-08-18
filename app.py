@@ -7,6 +7,7 @@ import shutil
 import importlib
 import pandas as pd
 from flask import Flask, request, jsonify, send_file, send_from_directory
+from werkzeug.utils import secure_filename
 
 import excel_processor
 importlib.reload(excel_processor)
@@ -23,6 +24,41 @@ from excel_processor import (
 )
 
 app = Flask(__name__, static_folder="static", static_url_path="")
+
+# ==============================================================================
+# VALIDACIONES DE SEGURIDAD SISTEMA COS (OWASP Top 10 & Mejores Prácticas)
+# 16. Restringir subida de archivos (Límite máximo de payload: 16 MB)
+# 18. Headers de Seguridad (CSP, X-Frame-Options, X-Content-Type-Options, etc.)
+# 19. HTTPS (HSTS Header en conexiones seguras)
+# ==============================================================================
+app.config['MAX_CONTENT_LENGTH'] = 16 * 1024 * 1024  # 16 MB max upload limit
+
+ALLOWED_EXTENSIONS = {'.xlsx', '.xls', '.csv'}
+
+def allowed_file(filename):
+    """ Validar Inputs (#14) y Restringir Subida (#16) """
+    if not filename or '.' not in filename:
+        return False
+    ext = os.path.splitext(filename)[1].lower()
+    return ext in ALLOWED_EXTENSIONS
+
+@app.after_request
+def apply_security_headers(response):
+    """ Headers de Seguridad (#18) y HTTPS (#19) """
+    response.headers['X-Content-Type-Options'] = 'nosniff'
+    response.headers['X-Frame-Options'] = 'DENY'
+    response.headers['X-XSS-Protection'] = '1; mode=block'
+    response.headers['Referrer-Policy'] = 'strict-origin-when-cross-origin'
+    response.headers['Content-Security-Policy'] = (
+        "default-src 'self'; "
+        "script-src 'self' 'unsafe-inline' https://cdn.jsdelivr.net https://cdnjs.cloudflare.com; "
+        "style-src 'self' 'unsafe-inline' https://fonts.googleapis.com https://cdnjs.cloudflare.com; "
+        "font-src 'self' https://fonts.gstatic.com https://cdnjs.cloudflare.com; "
+        "img-src 'self' data:;"
+    )
+    if request.is_secure:
+        response.headers['Strict-Transport-Security'] = 'max-age=31536000; includeSubDomains'
+    return response
 
 BASE_DIR = os.path.dirname(os.path.abspath(__file__))
 TEMPLATES_DIR = BASE_DIR
@@ -309,11 +345,11 @@ def upload_workers_db():
         return jsonify({"error": "Archivo no seleccionado"}), 400
         
     try:
-        filename = uploaded_file.filename
-        ext = os.path.splitext(filename)[1].lower()
-        if ext not in [".xlsx", ".xls", ".csv"]:
-            return jsonify({"error": "Formato no soportado. El archivo debe ser .xlsx, .xls o .csv"}), 400
+        filename = secure_filename(uploaded_file.filename)
+        if not allowed_file(filename):
+            return jsonify({"error": "Formato no permitido. Solamente se admiten archivos .xlsx, .xls o .csv"}), 400
             
+        ext = os.path.splitext(filename)[1].lower()
         if ext == ".csv":
             df = pd.read_csv(uploaded_file)
         else:
@@ -342,7 +378,7 @@ def upload_workers_db():
             "last_modified": last_mod
         })
     except Exception as e:
-        return jsonify({"error": f"Error procesando archivo de base de datos: {str(e)}"}), 500
+        return jsonify({"error": "Error interno procesando archivo de base de datos"}), 500
 
 @app.route("/api/workers/download-template-db", methods=["GET"])
 def download_workers_db_template():
@@ -466,13 +502,17 @@ def generate_batch():
     if not uploaded_file.filename:
         return jsonify({"error": "Archivo no seleccionado"}), 400
         
+    filename = secure_filename(uploaded_file.filename)
+    if not allowed_file(filename):
+        return jsonify({"error": "Formato no permitido. Solamente se admiten archivos .xlsx, .xls o .csv"}), 400
+
     session_id = f"batch_{uuid.uuid4().hex}"
     work_dir = os.path.join(TEMP_DIR, session_id)
     os.makedirs(work_dir, exist_ok=True)
     
     try:
-        filename = uploaded_file.filename.lower()
-        if filename.endswith(".csv"):
+        ext = os.path.splitext(filename)[1].lower()
+        if ext == ".csv":
             df = pd.read_csv(uploaded_file)
         else:
             df = pd.read_excel(uploaded_file)

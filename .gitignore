@@ -8,6 +8,14 @@ temp_downloads/
 .vscode/
 .idea/
 
+# Variables de entorno, llaves y secretos (Validación #2: Purgar secrets de GIT)
+.env
+*.env
+*.pem
+*.key
+*.log
+secrets/
+
 # Carpetas de pruebas temporales
 test_output/
 test_output_31/
