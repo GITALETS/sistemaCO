@@ -152,6 +152,34 @@ function populateProfileSelect() {
     });
 }
 
+// Handle Uploading a new Job Profile Excel file (.xlsx)
+async function handleProfileFileUploaded(e) {
+    if (!e.target.files || e.target.files.length === 0) return;
+    const file = e.target.files[0];
+    
+    const formData = new FormData();
+    formData.append("file", file);
+    
+    try {
+        const res = await fetch("/api/profiles/upload", {
+            method: "POST",
+            body: formData
+        });
+        
+        if (res.ok) {
+            const data = await res.json();
+            await fetchProfiles();
+            showToast(data.message || "¡Perfil subido y registrado con éxito!", "success");
+            e.target.value = "";
+        } else {
+            const err = await res.json();
+            showToast(`Error cargando perfil: ${err.error}`, "error");
+        }
+    } catch (err) {
+        showToast("Error de conexión al subir el perfil de puesto", "error");
+    }
+}
+
 async function handleProfileSelectChange(puestoValue) {
     if (!puestoValue) return;
 

@@ -425,6 +425,38 @@ def get_profiles():
         })
     return jsonify(result)
 
+@app.route("/api/profiles/upload", methods=["POST"])
+def upload_profile_file():
+    """ Permite subir un nuevo archivo Excel de Perfil de Puesto CO-03-01 """
+    if "file" not in request.files:
+        return jsonify({"error": "No se envió ningún archivo"}), 400
+    uploaded_file = request.files["file"]
+    if not uploaded_file.filename:
+        return jsonify({"error": "Archivo no seleccionado"}), 400
+        
+    try:
+        filename = secure_filename(uploaded_file.filename)
+        if not filename.lower().endswith(".xlsx"):
+            return jsonify({"error": "Solamente se admiten archivos de perfil en formato .xlsx"}), 400
+            
+        clean_name = filename
+        if not clean_name.startswith("CO-03-01"):
+            clean_name = f"CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA {clean_name}"
+        clean_name = clean_name.replace("CO-03-01_", "CO-03-01 ")
+        
+        target_path = os.path.join(BASE_DIR, clean_name)
+        uploaded_file.seek(0)
+        uploaded_file.save(target_path)
+        
+        profiles = load_job_profiles(BASE_DIR)
+        
+        return jsonify({
+            "message": f"¡Perfil de Puesto '{clean_name}' subido y registrado exitosamente!",
+            "profiles_count": len(profiles)
+        })
+    except Exception as e:
+        return jsonify({"error": f"Error guardando archivo de perfil: {str(e)}"}), 500
+
 @app.route("/api/profile-activities", methods=["POST"])
 def get_activities_for_puesto():
     data = request.json or {}

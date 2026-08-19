@@ -128,7 +128,13 @@
                                 </div>
 
                                 <div class="form-group col-span-2">
-                                    <label for="select-perfil-puesto"><i class="fa-solid fa-layer-group"></i> Perfil de Puesto (Actividades de Gantt)</label>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <label for="select-perfil-puesto" style="margin-bottom: 0;"><i class="fa-solid fa-layer-group"></i> Perfil de Puesto (Actividades de Gantt)</label>
+                                        <button type="button" class="btn-xs btn-outline-cfe" onclick="document.getElementById('input-file-profile').click()" title="Subir nuevo archivo de perfil Excel (.xlsx)">
+                                            <i class="fa-solid fa-file-circle-plus"></i> Cargar Perfil Excel
+                                        </button>
+                                        <input type="file" id="input-file-profile" accept=".xlsx" style="display: none;" onchange="handleProfileFileUploaded(event)">
+                                    </div>
                                     <select id="select-perfil-puesto" onchange="handleProfileSelectChange(this.value)">
                                         <option value="">-- Seleccionar Perfil de Puesto Registrado --</option>
                                         <!-- Loaded dynamically via API -->

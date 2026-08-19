@@ -78,7 +78,7 @@ def load_job_profiles(base_dir=".") -> dict:
             puesto_celda = sheet["C10"].value
             puesto_name = clean_text_encoding(puesto_celda) if puesto_celda else ""
             
-            clean_fname = f.replace("CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA", "").replace(".xlsx", "").strip()
+            clean_fname = f.replace("CO-03-01_SEGUIMIENTO_PROG_ESP_TAREA", "").replace("CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA", "").replace(".xlsx", "").strip()
             clean_fname = clean_text_encoding(clean_fname)
 
             if f != "CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA.xlsx" and clean_fname:
