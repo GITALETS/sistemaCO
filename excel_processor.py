@@ -78,7 +78,20 @@ def load_job_profiles(base_dir=".") -> dict:
             puesto_celda = sheet["C10"].value
             puesto_name = clean_text_encoding(puesto_celda) if puesto_celda else ""
             
-            clean_fname = f.replace("CO-03-01_SEGUIMIENTO_PROG_ESP_TAREA", "").replace("CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA", "").replace(".xlsx", "").strip()
+            clean_fname = f.replace(".xlsx", "")
+            for prefix in [
+                "CO-03-01_SEGUIMIENTO_PROG_ESP_TAREA",
+                "CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA",
+                "CO-03-01_SEGUIMIENTO_",
+                "CO-03-01_SEGUIMIENTO",
+                "CO-03-01 SEGUIMIENTO_",
+                "CO-03-01 SEGUIMIENTO",
+                "CO-03-01_",
+                "CO-03-01"
+            ]:
+                if clean_fname.startswith(prefix):
+                    clean_fname = clean_fname[len(prefix):]
+            clean_fname = clean_fname.replace("_", " ").strip()
             clean_fname = clean_text_encoding(clean_fname)
 
             if f != "CO-03-01 SEGUIMIENTO_PROG_ESP_TAREA.xlsx" and clean_fname:
@@ -347,8 +360,12 @@ def fill_file_01_seguimiento(wb, data, period_info, base_dir="."):
     rpe = validate_rpe(data.get("rpe", ""))
     nombre = str(data.get("nombre", "")).strip()
     
+    is_temp = detect_worker_type(rpe) == "TEMPORAL SINDICALIZADO"
     puesto_actual_input = str(data.get("puesto_actual", data.get("puesto_base", ""))).strip()
-    puesto_actual = puesto_actual_input if puesto_actual_input else detect_worker_type(rpe)
+    if is_temp:
+        puesto_actual = "TEMPORAL SINDICALIZADO"
+    else:
+        puesto_actual = puesto_actual_input if (puesto_actual_input and puesto_actual_input.upper() != "TEMPORAL SINDICALIZADO") else "BASE SINDICALIZADO"
     puesto_probar = str(data.get("puesto_probar", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)")).strip()
     
     sheet["C8"] = rpe
@@ -458,8 +475,12 @@ def fill_file_02_valoracion(wb, data, period_info):
     area = str(data.get("area", "ZONA TOLUCA")).strip()
     clave = str(data.get("clave", "623X5")).strip()
     
+    is_temp = detect_worker_type(rpe) == "TEMPORAL SINDICALIZADO"
     puesto_actual_input = str(data.get("puesto_actual", data.get("puesto_base", ""))).strip()
-    puesto_actual = puesto_actual_input if puesto_actual_input else detect_worker_type(rpe)
+    if is_temp:
+        puesto_actual = "TEMPORAL SINDICALIZADO"
+    else:
+        puesto_actual = puesto_actual_input if (puesto_actual_input and puesto_actual_input.upper() != "TEMPORAL SINDICALIZADO") else "BASE SINDICALIZADO"
     puesto_probar = str(data.get("puesto_probar", "AYUDANTE LINIERO (SERVICIO AL CLIENTE)")).strip()
     
     sheet["C10"] = area

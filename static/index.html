@@ -120,11 +120,17 @@
                                 </div>
 
                                 <div class="form-group col-span-2">
-                                    <label for="input-puesto-actual"><i class="fa-solid fa-briefcase"></i> Puesto Actual / Base del Trabajador</label>
-                                    <input type="text" id="input-puesto-actual" name="puesto_actual"
-                                        value="TEMPORAL SINDICALIZADO" required
-                                        placeholder="Ej. LINIERO LV o TEMPORAL SINDICALIZADO" oninput="updatePreview()">
-                                    <small class="help-text"><i class="fa-solid fa-circle-info"></i> Para personal de base, indica su categoría titular (ej. LINIERO LV).</small>
+                                    <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 4px;">
+                                        <label for="input-puesto-actual" style="margin-bottom: 0;"><i class="fa-solid fa-briefcase"></i> Puesto Actual / Base del Trabajador</label>
+                                        <span id="puesto-actual-lock-badge" class="badge-tag-locked"><i class="fa-solid fa-lock"></i> No modificable (Temporal)</span>
+                                    </div>
+                                    <div class="input-lock-container">
+                                        <input type="text" id="input-puesto-actual" name="puesto_actual"
+                                            value="TEMPORAL SINDICALIZADO" required readonly class="input-locked"
+                                            placeholder="Ej. LINIERO LV o TEMPORAL SINDICALIZADO" oninput="updatePreview()">
+                                        <i id="puesto-actual-lock-icon" class="fa-solid fa-lock input-internal-lock-icon"></i>
+                                    </div>
+                                    <small class="help-text" id="puesto-actual-help"><i class="fa-solid fa-lock"></i> Fijo como 'TEMPORAL SINDICALIZADO' para personal temporal sindicalizado.</small>
                                 </div>
 
                                 <div class="form-group col-span-2">

@@ -222,6 +222,63 @@ function switchTab(tabName) {
     document.getElementById(`tab-content-${tabName}`).classList.add("active");
 }
 
+// Control de modificación para Puesto Actual / Base del Trabajador
+// En personal temporal sindicalizado (RTT) no se permite modificar (fijo 'TEMPORAL SINDICALIZADO')
+// En personal de base (RPE) sí es modificable
+function updatePuestoActualLockState(rpeValOverride) {
+    const rpeInput = document.getElementById("input-rpe");
+    const rpeVal = (rpeValOverride !== undefined ? rpeValOverride : (rpeInput ? rpeInput.value.trim() : ""));
+    const inputPuestoActual = document.getElementById("input-puesto-actual");
+    const lockBadge = document.getElementById("puesto-actual-lock-badge");
+    const lockIcon = document.getElementById("puesto-actual-lock-icon");
+    const helpText = document.getElementById("puesto-actual-help");
+
+    if (!inputPuestoActual) return;
+
+    // Temporal si inicia con letra o si está vacío por defecto. Base si inicia con dígito.
+    const isTemporal = !rpeVal || isNaN(rpeVal.charAt(0));
+
+    if (isTemporal) {
+        inputPuestoActual.value = "TEMPORAL SINDICALIZADO";
+        inputPuestoActual.readOnly = true;
+        inputPuestoActual.classList.add("input-locked");
+        inputPuestoActual.setAttribute("title", "No modificable: Para trabajadores temporales sindicalizados (RTT) el puesto actual es siempre TEMPORAL SINDICALIZADO.");
+        
+        if (lockBadge) {
+            lockBadge.className = "badge-tag-locked";
+            lockBadge.innerHTML = `<i class="fa-solid fa-lock"></i> No modificable (Temporal)`;
+            lockBadge.classList.remove("hidden");
+        }
+        if (lockIcon) {
+            lockIcon.classList.remove("hidden");
+        }
+        if (helpText) {
+            helpText.innerHTML = `<i class="fa-solid fa-lock"></i> Fijo como 'TEMPORAL SINDICALIZADO' para personal temporal sindicalizado.`;
+        }
+    } else {
+        inputPuestoActual.readOnly = false;
+        inputPuestoActual.classList.remove("input-locked");
+        inputPuestoActual.removeAttribute("title");
+        
+        if (lockBadge) {
+            lockBadge.className = "badge-tag-unlocked";
+            lockBadge.innerHTML = `<i class="fa-solid fa-pen-to-square"></i> Modificable (Base)`;
+            lockBadge.classList.remove("hidden");
+        }
+        if (lockIcon) {
+            lockIcon.classList.add("hidden");
+        }
+        if (helpText) {
+            helpText.innerHTML = `<i class="fa-solid fa-circle-info"></i> Para personal de base (RPE), indica su categoría titular actual (ej. LINIERO LV).`;
+        }
+        // Si el valor actual es el texto por defecto de temporal, permitir al usuario ingresar la categoría titular
+        if (inputPuestoActual.value === "TEMPORAL SINDICALIZADO") {
+            inputPuestoActual.value = "";
+            inputPuestoActual.placeholder = "Ej. LINIERO LV o SOBRESTANTE";
+        }
+    }
+}
+
 // RPE / RTT Validation (Exactly 5 Characters)
 function handleRpeInput() {
     const rpeInput = document.getElementById("input-rpe");
@@ -229,6 +286,9 @@ function handleRpeInput() {
     const btnSubmit = document.getElementById("btn-submit-single");
     
     const rpeVal = rpeInput.value.trim();
+
+    // Actualizar dinámicamente si se bloquea o desbloquea 'Puesto Actual'
+    updatePuestoActualLockState(rpeVal);
 
     if (rpeVal.length !== 5) {
         if (warningBadge) {
@@ -241,13 +301,6 @@ function handleRpeInput() {
             warningBadge.classList.add("hidden");
         }
         if (btnSubmit) btnSubmit.disabled = false;
-        
-        // Auto-sugerir Puesto Actual si es RTT (inicia con letra)
-        const isTemporal = rpeVal && isNaN(rpeVal.charAt(0));
-        const inputPuestoActual = document.getElementById("input-puesto-actual");
-        if (inputPuestoActual && isTemporal && (!inputPuestoActual.value || inputPuestoActual.value === "BASE SINDICALIZADO")) {
-            inputPuestoActual.value = "TEMPORAL SINDICALIZADO";
-        }
         
         updatePreview();
     }
@@ -330,10 +383,19 @@ function selectWorker(w) {
     document.getElementById("input-clave").value = w.clave || "623X5";
     document.getElementById("input-area").value = w.area || "ZONA TOLUCA";
     
+    const rpeVal = (w.rpe || "").trim();
+    const isTemporal = (w.worker_type && w.worker_type.toUpperCase().includes("TEMPORAL")) || (rpeVal && isNaN(rpeVal.charAt(0)));
+
     const inputPuestoActual = document.getElementById("input-puesto-actual");
     if (inputPuestoActual) {
-        inputPuestoActual.value = w.puesto_actual || (w.worker_type || "TEMPORAL SINDICALIZADO");
+        if (isTemporal) {
+            inputPuestoActual.value = "TEMPORAL SINDICALIZADO";
+        } else {
+            inputPuestoActual.value = (w.puesto_actual && w.puesto_actual !== "TEMPORAL SINDICALIZADO") ? w.puesto_actual : "";
+        }
     }
+    
+    updatePuestoActualLockState(rpeVal);
     
     const inputPuestoProbar = document.getElementById("input-puesto-probar");
     if (inputPuestoProbar) {
@@ -486,7 +548,7 @@ async function updatePreview() {
 
     if (badge) badge.innerHTML = `<i class="fa-solid ${isTemporal ? 'fa-user-clock' : 'fa-user-check'}"></i> ${workerTypeStr}`;
     if (prevWorkerType) prevWorkerType.innerText = workerTypeStr;
-    if (prevPuestoActual) prevPuestoActual.innerText = puestoActualVal || (isTemporal ? "TEMPORAL SINDICALIZADO" : "BASE SINDICALIZADO");
+    if (prevPuestoActual) prevPuestoActual.innerText = isTemporal ? "TEMPORAL SINDICALIZADO" : (puestoActualVal || "BASE SINDICALIZADO");
     if (prevProfileMatched) prevProfileMatched.innerText = puestoProbar || "PERSONALIZADO";
 
     if (badge) {
@@ -501,7 +563,12 @@ async function updatePreview() {
         const res = await fetch("/api/preview-info", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
-            body: JSON.stringify({ rpe, puesto_actual: puestoActualVal, puesto_probar: puestoProbar, fecha_fisica: fechaFisica })
+            body: JSON.stringify({
+                rpe,
+                puesto_actual: isTemporal ? "TEMPORAL SINDICALIZADO" : puestoActualVal,
+                puesto_probar: puestoProbar,
+                fecha_fisica: fechaFisica
+            })
         });
         if (res.ok) {
             const data = await res.json();
@@ -620,10 +687,13 @@ async function handleSingleGenerate(e) {
     const offJefeBase = document.getElementById("off-jefe-base") ? document.getElementById("off-jefe-base").value : "ING. MARCO ANTONIO ESTRADA AMADOR";
     const selectedJefe = isTemporal ? offJefeTemp : offJefeBase;
 
+        const inputPuestoActualVal = document.getElementById("input-puesto-actual") ? document.getElementById("input-puesto-actual").value.trim() : "";
+        const finalPuestoActual = isTemporal ? "TEMPORAL SINDICALIZADO" : (inputPuestoActualVal || "BASE SINDICALIZADO");
+
         const formData = {
             nombre: document.getElementById("input-nombre").value.trim(),
             rpe: rpeVal,
-            puesto_actual: document.getElementById("input-puesto-actual") ? document.getElementById("input-puesto-actual").value.trim() : "",
+            puesto_actual: finalPuestoActual,
             clave: document.getElementById("input-clave").value.trim(),
             area: document.getElementById("input-area").value.trim(),
             puesto_probar: document.getElementById("input-puesto-probar").value.trim(),

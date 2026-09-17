@@ -501,6 +501,70 @@ body {
     box-shadow: 0 0 0 3px var(--primary-glow);
 }
 
+.input-lock-container {
+    position: relative;
+    display: flex;
+    align-items: center;
+    width: 100%;
+}
+
+.input-lock-container input {
+    width: 100%;
+}
+
+.input-internal-lock-icon {
+    position: absolute;
+    right: 12px;
+    color: #94a3b8;
+    font-size: 13.5px;
+    pointer-events: none;
+    transition: var(--transition-fast);
+}
+
+.badge-tag-locked {
+    background: #fee2e2;
+    color: #991b1b;
+    border: 1px solid #fecaca;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: var(--transition-fast);
+}
+
+.badge-tag-unlocked {
+    background: #f0fdf4;
+    color: #166534;
+    border: 1px solid #bbf7d0;
+    padding: 2px 8px;
+    border-radius: 12px;
+    font-size: 11px;
+    font-weight: 600;
+    display: inline-flex;
+    align-items: center;
+    gap: 5px;
+    transition: var(--transition-fast);
+}
+
+.form-group input.input-locked,
+.form-group input[readonly].input-locked {
+    background-color: #f8fafc !important;
+    color: #475569 !important;
+    border-color: #cbd5e1 !important;
+    cursor: not-allowed !important;
+    user-select: none;
+    padding-right: 32px !important;
+}
+
+.form-group input.input-locked:focus {
+    outline: none !important;
+    border-color: #cbd5e1 !important;
+    box-shadow: none !important;
+}
+
 .help-text {
     font-size: 11.5px;
     color: var(--text-muted);

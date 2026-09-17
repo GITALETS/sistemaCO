@@ -237,8 +237,12 @@ def load_workers_database():
                 if not rpe_val or not nombre_val:
                     continue
                 wtype = detect_worker_type(rpe_val)
-                p_actual = get_col_val(row, ["puesto_actual", "puesto_base", "puesto", "puesto_del_trabajador"], wtype)
-                p_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar"], p_actual)
+                if wtype == "TEMPORAL SINDICALIZADO":
+                    p_actual = "TEMPORAL SINDICALIZADO"
+                    p_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar", "puesto_actual", "puesto", "puesto_base"], "AYUDANTE LINIERO (SERVICIO AL CLIENTE)")
+                else:
+                    p_actual = get_col_val(row, ["puesto_actual", "puesto_base", "puesto", "puesto_del_trabajador"], wtype)
+                    p_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar"], p_actual)
                 area_val = get_col_val(row, ["area", "zona", "departamento"], "ZONA TOLUCA")
                 clave_val = get_col_val(row, ["clave", "clave_area", "centro_de_trabajo"], "623X5")
                 loaded.append({
@@ -473,6 +477,11 @@ def preview_info():
     fecha_fisica = data.get("fecha_fisica", "2026-08-14")
     
     worker_type = detect_worker_type(rpe)
+    if worker_type == "TEMPORAL SINDICALIZADO":
+        puesto_actual_clean = "TEMPORAL SINDICALIZADO"
+    else:
+        puesto_actual_clean = puesto_actual if (puesto_actual and puesto_actual.upper() != "TEMPORAL SINDICALIZADO") else "BASE SINDICALIZADO"
+
     period_info = calculate_target_month_from_physical_date(fecha_fisica)
     activities = get_profile_activities(puesto_probar, base_dir=BASE_DIR)
     
@@ -481,7 +490,7 @@ def preview_info():
     return jsonify({
         "rpe": rpe,
         "worker_type": worker_type,
-        "puesto_actual": puesto_actual or worker_type,
+        "puesto_actual": puesto_actual_clean,
         "period_info": period_info,
         "activities": activities,
         "sample_scores": {
@@ -570,8 +579,12 @@ def generate_batch():
                     continue
                     
                 wtype = detect_worker_type(rpe)
-                puesto_actual = get_col_val(row, ["puesto_actual", "puesto_base", "puesto", "puesto_del_trabajador"], wtype)
-                puesto_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar"], puesto_actual)
+                if wtype == "TEMPORAL SINDICALIZADO":
+                    puesto_actual = "TEMPORAL SINDICALIZADO"
+                    puesto_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar", "puesto_actual", "puesto", "puesto_base"], "AYUDANTE LINIERO (SERVICIO AL CLIENTE)")
+                else:
+                    puesto_actual = get_col_val(row, ["puesto_actual", "puesto_base", "puesto", "puesto_del_trabajador"], wtype)
+                    puesto_probar = get_col_val(row, ["puesto_probar", "puesto_evaluado", "puesto_a_probar"], puesto_actual)
                 area = get_col_val(row, ["area", "zona", "departamento"], "ZONA TOLUCA")
                 clave = get_col_val(row, ["clave", "clave_area"], "623X5")
                 fecha_fisica = get_col_val(row, ["fecha_fisica", "fecha", "fecha_evaluacion"], "2026-08-14")
